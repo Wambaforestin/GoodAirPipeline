@@ -18,7 +18,7 @@ x-airflow-common:
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
-    # Override pour le réseau Docker (dans .env c'est localhost pour SSMS)
+    # Override pour le réseau Docker (dans .env c'est localhost parce que je vais utiliser SSMS comme client pour gerer la base de données)
     MSSQL_HOST: sqlserver
     PYTHONPATH: /opt/airflow
   volumes:
