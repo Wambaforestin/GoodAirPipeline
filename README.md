@@ -5,7 +5,7 @@ Collecte des données météorologiques (OpenWeatherMap) et de qualité de l'air
 
 ## Architecture
 
-- **Orchestration** : Apache Airflow 3 (CeleryExecutor)
+- **Orchestration** : Apache Airflow 3 (LocalExecutor)
 - **Data Lake** : MinIO (couches Bronze / Silver)
 - **Data Warehouse** : SQL Server 2022 (star schema — Gold)
 - **Langage** : Python (pandas, pyarrow, SQLAlchemy, pyodbc)
