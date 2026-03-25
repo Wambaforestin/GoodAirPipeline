@@ -13,7 +13,7 @@ Collecte des données météorologiques (OpenWeatherMap) et de qualité de l'air
 
 ## Structure du Projet
 
-bash```
+```
 GoodAirPipeline/
 ├── dags/                  # DAGs Airflow
 ├── src/                   # Code source modulaire
