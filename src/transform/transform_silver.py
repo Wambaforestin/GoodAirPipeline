@@ -117,9 +117,11 @@ def apply_cleaning_rules(df):
     # CodePays manquant → 'ND'
     df["CodePays"] = df["CodePays"].fillna("ND")
 
-    # Statuts de source
-    df["MeteoStatus"] = np.where(df["Temperature"].isna(), "FAILED", "OK")
-    df["AirStatus"] = np.where(df["PM25"].isna(), "FAILED", "OK")
+    # Statuts de source (FAILED = aucune donnée reçue de l'API)
+    meteo_cols = ["Temperature", "Humidite", "Pression", "VitesseVent"]
+    air_cols = ["AqiGlobal", "PM25", "PM10", "NO2", "O3"]
+    df["MeteoStatus"] = np.where(df[meteo_cols].isna().all(axis=1), "FAILED", "OK")
+    df["AirStatus"] = np.where(df[air_cols].isna().all(axis=1), "FAILED", "OK")
 
     # DQ Flags (bornes de validité)
     df["is_temp_valid"] = df["Temperature"].isna() | (
@@ -127,8 +129,6 @@ def apply_cleaning_rules(df):
     )
 
     # Ligne morte : TOUTES les métriques sont NULL → rejet
-    meteo_cols = ["Temperature", "Humidite", "Pression", "VitesseVent"]
-    air_cols = ["AqiGlobal", "PM25", "PM10", "NO2", "O3"]
     dead_rows = df[meteo_cols + air_cols].isna().all(axis=1)
 
     df_rejects = df[dead_rows].copy()
