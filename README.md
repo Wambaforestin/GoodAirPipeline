@@ -5,7 +5,7 @@ Collecte des données météorologiques (OpenWeatherMap) et de qualité de l'air
 
 ## Architecture
 
-- **Orchestration** : Apache Airflow 3 (LocalExecutor)
+- **Orchestration** : Apache Airflow 3 (CeleryExecutor)
 - **Data Lake** : MinIO (couches Bronze / Silver)
 - **Data Warehouse** : SQL Server 2022 (star schema — Gold)
 - **Langage** : Python (pandas, pyarrow, SQLAlchemy, pyodbc)
@@ -49,18 +49,45 @@ GoodAirPipeline/
 
 ![Architecture d'airflow](images/ArchitectureAiflow.png)
 
+## Prérequis
+
+- Docker Desktop installé et lancé (allouer au moins 4 Go de RAM)
+- Git Bash (ou terminal VS Code)
+- uv (gestionnaire de paquets Python)
+
 ## Démarrage Rapide
 
 ```bash
 # 1. Copier et configurer les variables d'environnement
 cp .env.example .env
-# → Remplir les clés API et mots de passe dans .env
+# Remplir les clés API et mots de passe dans .env
 
-# 2. Lancer l'infrastructure
+# 2. Initialiser Airflow (attendre le message de fin)
+docker compose up airflow-init
+
+# 3. Lancer tous les services en arrière-plan
 docker compose up -d
 
-# 3. Accéder à Airflow
-# http://localhost:8080 (airflow / airflow)
+# 4. Vérifier que tout est healthy
+docker compose ps
+```
+
+## Accès aux services
+
+| Service | URL | Identifiants |
+|---------|-----|-------------|
+| Airflow | http://localhost:8080 | airflow / airflow |
+| MinIO Console | http://localhost:9001 | admin / (voir .env) |
+| SQL Server | localhost:1433 | sa / (voir .env) |
+
+## Maintenance
+
+```bash
+# Arrêter les services
+docker compose down
+
+# Arrêter et supprimer toutes les données (reset complet)
+docker compose down --volumes --remove-orphans
 ```
 
 ## Sources de Données

@@ -2,4 +2,14 @@
 name = "goodairpipeline"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "apache-airflow>=3.1.8",
+    "minio>=7.2.20",
+    "numpy>=2.4.3",
+    "pandas>=3.0.1",
+    "pyarrow>=23.0.1",
+    "pyodbc>=5.3.0",
+    "pyyaml>=6.0.3",
+    "requests>=2.32.5",
+    "sqlalchemy>=2.0.48",
+]
