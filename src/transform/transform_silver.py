@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
+from minio.error import S3Error
 
 from src.utils.connections import (
     get_minio_client,
@@ -146,9 +147,12 @@ def apply_cleaning_rules(df):
 
 def save_to_silver(minio_client, bucket, df, partition_path, filename):
     """Sauvegarde un DataFrame en Parquet dans MinIO (couche Silver)."""
-    if not minio_client.bucket_exists(bucket):
-        minio_client.make_bucket(bucket)
-        logger.info(f"Bucket créé : {bucket}")
+    try:
+        if not minio_client.bucket_exists(bucket):
+            minio_client.make_bucket(bucket)
+            logger.info(f"Bucket créé : {bucket}")
+    except S3Error:
+        pass
 
     table = pa.Table.from_pandas(df)
     buffer = BytesIO()

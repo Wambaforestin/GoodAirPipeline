@@ -3,6 +3,7 @@ import json
 from io import BytesIO
 
 import requests
+from minio.error import S3Error
 
 from src.utils.connections import (
     get_minio_client,
@@ -43,9 +44,12 @@ def extract_aqicn(city, api_key):
 
 def save_to_bronze(minio_client, bucket, data, partition_path, filename):
     """Sauvegarde un JSON brut dans MinIO (couche Bronze)."""
-    if not minio_client.bucket_exists(bucket):
-        minio_client.make_bucket(bucket)
-        logger.info(f"Bucket créé : {bucket}")
+    try:
+        if not minio_client.bucket_exists(bucket):
+            minio_client.make_bucket(bucket)
+            logger.info(f"Bucket créé : {bucket}")
+    except S3Error:
+        pass
 
     json_bytes = json.dumps(data, ensure_ascii=False).encode("utf-8")
     object_path = f"{partition_path}{filename}"
