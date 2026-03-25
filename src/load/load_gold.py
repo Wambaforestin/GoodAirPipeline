@@ -1,5 +1,4 @@
 from io import BytesIO
-from datetime import datetime
 
 import pandas as pd
 import pyarrow.parquet as pq
@@ -36,11 +35,11 @@ def truncate_staging(engine):
 def load_to_staging(engine, df, run_date):
     """Insère les données Silver dans les 3 tables staging."""
 
-    # Préparer DimLieux_Temp
+    # DimLieux_Temp
     dim_lieux_cols = ["NomVille", "CodePays", "Latitude", "Longitude"]
     df_lieux = df[dim_lieux_cols].drop_duplicates(subset=["NomVille"])
 
-    # Préparer DimTemps_Temp
+    # DimTemps_Temp
     run_hour = int(run_date.strftime("%Y%m%d%H"))
     df_temps = pd.DataFrame([{
         "IDTemps": run_hour,
@@ -51,7 +50,7 @@ def load_to_staging(engine, df, run_date):
         "Heure": run_date.hour
     }])
 
-    # Préparer FactMesures_Temp
+    # FactMesures_Temp
     fact_cols = [
         "NomVille", "IDTemps", "Temperature", "Humidite", "Pression",
         "VitesseVent", "AqiGlobal", "PM25", "PM10", "NO2", "O3",
@@ -59,7 +58,7 @@ def load_to_staging(engine, df, run_date):
     ]
     df_facts = df[fact_cols].copy()
 
-    # Insertion bulk dans staging
+    # Insertion bulk
     df_lieux.to_sql("DimLieux_Temp", engine, schema="Staging",
                     if_exists="append", index=False)
     logger.info(f"{len(df_lieux)} villes insérées dans Staging.DimLieux_Temp")
@@ -74,66 +73,75 @@ def load_to_staging(engine, df, run_date):
 
 
 def execute_merge(engine, batch_id):
-    """Exécute le script MERGE pour pousser Staging vers Gold."""
-    merge_sql = """
-    -- 1. Insérer les nouvelles villes dans DimLieux
-    INSERT INTO Gold.DimLieux (NomVille, CodePays, Latitude, Longitude)
-    SELECT s.NomVille, s.CodePays, s.Latitude, s.Longitude
-    FROM Staging.DimLieux_Temp s
-    WHERE NOT EXISTS (
-        SELECT 1 FROM Gold.DimLieux d WHERE d.NomVille = s.NomVille
-    );
+    """Exécute le MERGE en 3 étapes séparées (évite les problèmes pyodbc multi-statements)."""
 
-    -- 2. Insérer les nouvelles heures dans DimTemps
-    INSERT INTO Gold.DimTemps (IDTemps, DateHeure, Annee, Mois, Jour, Heure)
-    SELECT s.IDTemps, s.DateHeure, s.Annee, s.Mois, s.Jour, s.Heure
-    FROM Staging.DimTemps_Temp s
-    WHERE NOT EXISTS (
-        SELECT 1 FROM Gold.DimTemps d WHERE d.IDTemps = s.IDTemps
-    );
+    sql_dim_lieux = text("""
+        INSERT INTO Gold.DimLieux (NomVille, CodePays, Latitude, Longitude)
+        SELECT s.NomVille, s.CodePays, s.Latitude, s.Longitude
+        FROM Staging.DimLieux_Temp s
+        WHERE NOT EXISTS (
+            SELECT 1 FROM Gold.DimLieux d WHERE d.NomVille = s.NomVille
+        )
+    """)
 
-    -- 3. MERGE FactMesures
-    MERGE Gold.FactMesures AS target
-    USING (
-        SELECT d.IDLieu, s.IDTemps, s.Temperature, s.Humidite, s.Pression,
-               s.VitesseVent, s.AqiGlobal, s.PM25, s.PM10, s.NO2, s.O3,
-               s.MeteoStatus, s.AirStatus
-        FROM Staging.FactMesures_Temp s
-        INNER JOIN Gold.DimLieux d ON d.NomVille = s.NomVille
-    ) AS source
-    ON target.IDLieu = source.IDLieu AND target.IDTemps = source.IDTemps
+    sql_dim_temps = text("""
+        INSERT INTO Gold.DimTemps (IDTemps, DateHeure, Annee, Mois, Jour, Heure)
+        SELECT s.IDTemps, s.DateHeure, s.Annee, s.Mois, s.Jour, s.Heure
+        FROM Staging.DimTemps_Temp s
+        WHERE NOT EXISTS (
+            SELECT 1 FROM Gold.DimTemps d WHERE d.IDTemps = s.IDTemps
+        )
+    """)
 
-    WHEN MATCHED THEN UPDATE SET
-        target.Temperature = source.Temperature,
-        target.Humidite = source.Humidite,
-        target.Pression = source.Pression,
-        target.VitesseVent = source.VitesseVent,
-        target.AqiGlobal = source.AqiGlobal,
-        target.PM25 = source.PM25,
-        target.PM10 = source.PM10,
-        target.NO2 = source.NO2,
-        target.O3 = source.O3,
-        target.MeteoStatus = source.MeteoStatus,
-        target.AirStatus = source.AirStatus,
-        target.DateModification = GETDATE()
+    sql_merge_facts = text("""
+        MERGE Gold.FactMesures AS target
+        USING (
+            SELECT d.IDLieu, s.IDTemps, s.Temperature, s.Humidite, s.Pression,
+                   s.VitesseVent, s.AqiGlobal, s.PM25, s.PM10, s.NO2, s.O3,
+                   s.MeteoStatus, s.AirStatus
+            FROM Staging.FactMesures_Temp s
+            INNER JOIN Gold.DimLieux d ON d.NomVille = s.NomVille
+        ) AS source
+        ON target.IDLieu = source.IDLieu AND target.IDTemps = source.IDTemps
 
-    WHEN NOT MATCHED THEN INSERT (
-        IDLieu, IDTemps, Temperature, Humidite, Pression, VitesseVent,
-        AqiGlobal, PM25, PM10, NO2, O3,
-        MeteoStatus, AirStatus, DateInsertion, DateModification, IDBatch
-    )
-    VALUES (
-        source.IDLieu, source.IDTemps, source.Temperature, source.Humidite,
-        source.Pression, source.VitesseVent, source.AqiGlobal, source.PM25,
-        source.PM10, source.NO2, source.O3,
-        source.MeteoStatus, source.AirStatus, GETDATE(), GETDATE(), :batch_id
-    );
-    """
+        WHEN MATCHED THEN UPDATE SET
+            target.Temperature = source.Temperature,
+            target.Humidite = source.Humidite,
+            target.Pression = source.Pression,
+            target.VitesseVent = source.VitesseVent,
+            target.AqiGlobal = source.AqiGlobal,
+            target.PM25 = source.PM25,
+            target.PM10 = source.PM10,
+            target.NO2 = source.NO2,
+            target.O3 = source.O3,
+            target.MeteoStatus = source.MeteoStatus,
+            target.AirStatus = source.AirStatus,
+            target.DateModification = GETDATE()
+
+        WHEN NOT MATCHED THEN INSERT (
+            IDLieu, IDTemps, Temperature, Humidite, Pression, VitesseVent,
+            AqiGlobal, PM25, PM10, NO2, O3,
+            MeteoStatus, AirStatus, DateInsertion, DateModification, IDBatch
+        )
+        VALUES (
+            source.IDLieu, source.IDTemps, source.Temperature, source.Humidite,
+            source.Pression, source.VitesseVent, source.AqiGlobal, source.PM25,
+            source.PM10, source.NO2, source.O3,
+            source.MeteoStatus, source.AirStatus, GETDATE(), GETDATE(), :batch_id
+        );
+    """)
 
     with engine.connect() as conn:
-        conn.execute(text(merge_sql), {"batch_id": batch_id})
+        conn.execute(sql_dim_lieux)
+        logger.info("DimLieux mis à jour.")
+
+        conn.execute(sql_dim_temps)
+        logger.info("DimTemps mis à jour.")
+
+        conn.execute(sql_merge_facts, {"batch_id": batch_id})
+        logger.info(f"MERGE FactMesures exécuté avec IDBatch = {batch_id}")
+
         conn.commit()
-    logger.info(f"MERGE exécuté avec IDBatch = {batch_id}")
 
 
 def run_load(run_date, batch_id):

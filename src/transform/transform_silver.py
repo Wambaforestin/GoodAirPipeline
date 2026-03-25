@@ -10,7 +10,7 @@ from src.utils.connections import (
     get_minio_client,
     load_cities_config,
     get_partition_path,
-    logger
+    logger,
 )
 
 
@@ -23,12 +23,14 @@ def read_bronze_json(minio_client, bucket, object_path):
     return data
 
 
-def flatten_openweathermap(raw, run_date):
-    """Aplatit le JSON OpenWeatherMap en une ligne de DataFrame."""
-    run_hour = int(run_date.strftime("%Y%m%d%H")) # calcul de l'IDTemps YYYYMMDDHH Ex: 2026-03-25 14:00 → 2026032514
+def flatten_openweathermap(raw, city_name, run_date):
+    """Aplatit le JSON OpenWeatherMap en une ligne de DataFrame.
+    city_name vient du config, pas de l'API (garantit la cohérence du merge).
+    """
+    run_hour = int(run_date.strftime("%Y%m%d%H"))
 
     row = {
-        "NomVille": raw.get("name"),
+        "NomVille": city_name,
         "CodePays": raw.get("sys", {}).get("country"),
         "Latitude": raw.get("coord", {}).get("lat"),
         "Longitude": raw.get("coord", {}).get("lon"),
@@ -41,14 +43,16 @@ def flatten_openweathermap(raw, run_date):
     return row
 
 
-def flatten_aqicn(raw, run_date):
-    """Aplatit le JSON AQICN en une ligne de DataFrame.""" 
-    run_hour = int(run_date.strftime("%Y%m%d%H")) # Ex: 2026-03-25 14:00 → 2026032514
+def flatten_aqicn(raw, city_name, run_date):
+    """Aplatit le JSON AQICN en une ligne de DataFrame.
+    city_name vient du config, pas de l'API (garantit la cohérence du merge).
+    """
+    run_hour = int(run_date.strftime("%Y%m%d%H"))
     data = raw.get("data", {})
     iaqi = data.get("iaqi", {})
 
     row = {
-        "NomVille": data.get("city", {}).get("name"),
+        "NomVille": city_name,
         "IDTemps": run_hour,
         "AqiGlobal": data.get("aqi"),
         "PM25": iaqi.get("pm25", {}).get("v"),
@@ -63,42 +67,55 @@ def apply_cleaning_rules(df):
     """Applique les règles de nettoyage métier sur le DataFrame fusionné."""
 
     # Typage strict - les valeurs non convertibles deviennent NULL
-    numeric_cols = ["Temperature", "Humidite", "Pression", "VitesseVent",
-                    "AqiGlobal", "PM25", "PM10", "NO2", "O3"]
+    numeric_cols = [
+        "Temperature",
+        "Humidite",
+        "Pression",
+        "VitesseVent",
+        "AqiGlobal",
+        "PM25",
+        "PM10",
+        "NO2",
+        "O3",
+    ]
     for col in numeric_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Gestion des nulls métier
     # CodePays manquant → 'ND'
-    df["CodePays"] = df["CodePays"].fillna("ND")
-
-    # Latitude/Longitude → rester NULL (pas de rejet)
+    if "CodePays" in df.columns:
+        df["CodePays"] = df["CodePays"].fillna("ND")
 
     # Statuts de source
-    df["MeteoStatus"] = np.where(df["Temperature"].isna(), "FAILED", "OK")
-    df["AirStatus"] = np.where(df["PM25"].isna(), "FAILED", "OK")
+    meteo_present = "Temperature" in df.columns
+    air_present = "PM25" in df.columns
 
-    # Règle de ligne morte : si TOUTES les métriques sont NULL, on rejette
+    df["MeteoStatus"] = (
+        np.where(df["Temperature"].isna(), "FAILED", "OK")
+        if meteo_present
+        else "FAILED"
+    )
+
+    df["AirStatus"] = (
+        np.where(df["PM25"].isna(), "FAILED", "OK") if air_present else "FAILED"
+    )
+
+    # Ligne morte : TOUTES les métriques sont NULL → rejet
     meteo_cols = ["Temperature", "Humidite", "Pression", "VitesseVent"]
     air_cols = ["AqiGlobal", "PM25", "PM10", "NO2", "O3"]
-    all_metrics = meteo_cols + air_cols
+    all_metrics = [c for c in meteo_cols + air_cols if c in df.columns]
     dead_rows = df[all_metrics].isna().all(axis=1)
 
     df_rejects = df[dead_rows].copy()
     df_valid = df[~dead_rows].copy()
 
-    # Rejet des lignes sans ville ou sans IDTemps (clés logiques)
+    # Rejet des lignes sans clés logiques
     no_keys = df_valid["NomVille"].isna() | df_valid["IDTemps"].isna()
     df_rejects = pd.concat([df_rejects, df_valid[no_keys]])
     df_valid = df_valid[~no_keys].copy()
 
     # Dédoublonnage sur (NomVille, IDTemps)
     df_valid = df_valid.drop_duplicates(subset=["NomVille", "IDTemps"], keep="last")
-
-    # DQ Flags (DQ veut dire Data Quality)
-    if "Temperature" in df_valid.columns:
-        df_valid["is_temp_valid"] = (df_valid["Temperature"] >= -50) & (df_valid["Temperature"] <= 60)
 
     return df_valid, df_rejects
 
@@ -109,7 +126,6 @@ def save_to_silver(minio_client, bucket, df, partition_path, filename):
         minio_client.make_bucket(bucket)
         logger.info(f"Bucket créé : {bucket}")
 
-    # Conversion en Parquet via PyArrow
     table = pa.Table.from_pandas(df)
     buffer = BytesIO()
     pq.write_table(table, buffer)
@@ -121,7 +137,7 @@ def save_to_silver(minio_client, bucket, df, partition_path, filename):
         object_name=object_path,
         data=buffer,
         length=buffer.getbuffer().nbytes,
-        content_type="application/octet-stream"
+        content_type="application/octet-stream",
     )
     logger.info(f"Silver sauvegardé : {bucket}/{object_path}")
 
@@ -145,14 +161,14 @@ def run_transform(run_date):
 
         try:
             owm_raw = read_bronze_json(minio_client, bronze_bucket, owm_path)
-            meteo_rows.append(flatten_openweathermap(owm_raw, run_date))
+            meteo_rows.append(flatten_openweathermap(owm_raw, city, run_date))
             logger.info(f"Bronze OWM lu : {city}")
         except Exception as e:
             logger.warning(f"Bronze OWM introuvable pour {city} : {e}")
 
         try:
             aqicn_raw = read_bronze_json(minio_client, bronze_bucket, aqicn_path)
-            air_rows.append(flatten_aqicn(aqicn_raw, run_date))
+            air_rows.append(flatten_aqicn(aqicn_raw, city, run_date))
             logger.info(f"Bronze AQICN lu : {city}")
         except Exception as e:
             logger.warning(f"Bronze AQICN introuvable pour {city} : {e}")
@@ -165,7 +181,7 @@ def run_transform(run_date):
         logger.error("Aucune donnée Bronze disponible. Transformation annulée.")
         return False
 
-    # Fusion météo + air (outer join sur NomVille + IDTemps)
+    # Fusion météo + air sur NomVille + IDTemps (les deux viennent du config → match garanti)
     if not df_meteo.empty and not df_air.empty:
         df_merged = pd.merge(df_meteo, df_air, on=["NomVille", "IDTemps"], how="outer")
     elif not df_meteo.empty:
@@ -179,7 +195,9 @@ def run_transform(run_date):
     # Sauvegarde Silver
     partition = get_partition_path("mesures", run_date)
     if not df_valid.empty:
-        save_to_silver(minio_client, silver_bucket, df_valid, partition, "mesures.parquet")
+        save_to_silver(
+            minio_client, silver_bucket, df_valid, partition, "mesures.parquet"
+        )
         logger.info(f"{len(df_valid)} lignes valides sauvegardées en Silver.")
     else:
         logger.warning("Aucune ligne valide après nettoyage.")
@@ -188,7 +206,9 @@ def run_transform(run_date):
     # Sauvegarde des rejets
     if not df_rejects.empty:
         reject_partition = get_partition_path("rejects", run_date)
-        save_to_silver(minio_client, silver_bucket, df_rejects, reject_partition, "rejects.parquet")
+        save_to_silver(
+            minio_client, silver_bucket, df_rejects, reject_partition, "rejects.parquet"
+        )
         logger.warning(f"{len(df_rejects)} lignes rejetées sauvegardées.")
 
     return True

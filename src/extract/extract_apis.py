@@ -1,34 +1,27 @@
 import os
 import json
 from io import BytesIO
-from datetime import datetime
 
 import requests
 
 from src.utils.connections import (
     get_minio_client,
     load_cities_config,
-    load_pipeline_config,
     get_partition_path,
-    logger
+    logger,
 )
 
 
 def extract_openweathermap(city, country, api_key):
     """Appelle l'API OpenWeatherMap pour une ville donnée."""
     url = "https://api.openweathermap.org/data/2.5/weather"
-    params = {
-        "q": f"{city},{country}",
-        "appid": api_key,
-        "units": "metric"
-    }
+    params = {"q": f"{city},{country}", "appid": api_key, "units": "metric"}
     response = requests.get(url, params=params, timeout=30)
 
     if response.status_code == 404:
         logger.warning(f"OpenWeatherMap - Ville introuvable : {city},{country}")
         return None
 
-    # Fail Fast pour toute autre erreur (429, 500, etc.)
     response.raise_for_status()
     return response.json()
 
@@ -50,7 +43,6 @@ def extract_aqicn(city, api_key):
 
 def save_to_bronze(minio_client, bucket, data, partition_path, filename):
     """Sauvegarde un JSON brut dans MinIO (couche Bronze)."""
-    # Créer le bucket s'il n'existe pas
     if not minio_client.bucket_exists(bucket):
         minio_client.make_bucket(bucket)
         logger.info(f"Bucket créé : {bucket}")
@@ -63,7 +55,7 @@ def save_to_bronze(minio_client, bucket, data, partition_path, filename):
         object_name=object_path,
         data=BytesIO(json_bytes),
         length=len(json_bytes),
-        content_type="application/json"
+        content_type="application/json",
     )
     logger.info(f"Bronze sauvegardé : {bucket}/{object_path}")
 
@@ -71,7 +63,6 @@ def save_to_bronze(minio_client, bucket, data, partition_path, filename):
 def run_extract(run_date):
     """Point d'entrée de l'extraction. Appelé par le DAG Airflow."""
     cities = load_cities_config()
-    config = load_pipeline_config()
     minio_client = get_minio_client()
 
     owm_key = os.getenv("OWM_API_KEY")
@@ -87,12 +78,16 @@ def run_extract(run_date):
         owm_data = extract_openweathermap(city, country, owm_key)
         if owm_data:
             partition = get_partition_path("openweathermap", run_date)
-            save_to_bronze(minio_client, bronze_bucket, owm_data, partition, f"{city}.json")
+            save_to_bronze(
+                minio_client, bronze_bucket, owm_data, partition, f"{city}.json"
+            )
 
         # AQICN
         aqicn_data = extract_aqicn(city, aqicn_key)
         if aqicn_data:
             partition = get_partition_path("aqicn", run_date)
-            save_to_bronze(minio_client, bronze_bucket, aqicn_data, partition, f"{city}.json")
+            save_to_bronze(
+                minio_client, bronze_bucket, aqicn_data, partition, f"{city}.json"
+            )
 
     logger.info("Extraction terminée.")
