@@ -38,7 +38,7 @@ api_sources:
     base_url: "https://api.waqi.info/feed"
     bronze_prefix: "aqicn"
 
-# --- Airflow ---
+# Airflow
 scheduling:
   interval: "@hourly"
   retries: 2
