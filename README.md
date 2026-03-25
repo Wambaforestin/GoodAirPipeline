@@ -76,9 +76,11 @@ docker compose ps
 
 | Service | URL | Identifiants |
 |---------|-----|-------------|
-| Airflow | http://localhost:8080 | airflow / airflow |
+| Airflow | http://localhost:8081 | airflow / airflow |
 | MinIO Console | http://localhost:9001 | admin / (voir .env) |
 | SQL Server | localhost:1433 | sa / (voir .env) |
+
+> Le port d'Airflow est configuré sur 8081 pour éviter les conflits avec d'autres services locaux.
 
 ## Maintenance
 
