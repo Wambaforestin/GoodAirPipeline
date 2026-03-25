@@ -35,7 +35,7 @@ GoodAirPipeline/
 
 ## Diagramme d'architecture de l'MVP
 
-![Architecture MVP Good Air](images/ArchirectueMVPGoodAir.png)
+![Architecture MVP Good Air](images/ArchitectueMVPGoodAir.png)
 
 ## Schéma en étoile
 
@@ -98,6 +98,28 @@ docker compose down --volumes --remove-orphans
 |--------|-----|---------|
 | OpenWeatherMap | `/data/2.5/weather` | Température, Humidité, Pression, Vent |
 | AQICN | `/feed/{city}/` | AQI, PM2.5, PM10, NO2, O3 |
+
+## Génération de la clé Fernet (sécurité Airflow)
+
+Airflow nécessite une clé Fernet pour chiffrer les connexions et variables. Si la variable `AIRFLOW_FERNET_KEY` n'est pas renseignée dans votre `.env`, vous aurez une erreur du type :
+
+```
+Invalid auth token: Signature verification failed. C'est la FERNET_KEY qui est vide dans le docker-compose. Le scheduler n'arrive pas à s'authentifier auprès de l'API server.
+```
+
+Pour générer une clé Fernet, exécutez dans Git Bash :
+
+```bash
+docker compose exec airflow-apiserver python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Copiez la clé générée, puis ajoutez-la dans votre `.env` :
+
+```
+AIRFLOW_FERNET_KEY=la_clé_générée_ici
+```
+
+> Note : Dans ce projet, je n'utilise pas la version complet de l'image officielle d'Airflow car cela ajourte beaucoup de dépendances inutiles (celery, redis, etc.) qui alourdissent le build et ne sont pas nécessaires pour un MVP avec LocalExecutor. Certains clés doivent etre générées manuellement pour éviter les erreurs d'authentification entre les composants (scheduler, webserver, API server).
 
 ## Équipe
 
