@@ -25,7 +25,7 @@ def read_bronze_json(minio_client, bucket, object_path):
 
 def flatten_openweathermap(raw, run_date):
     """Aplatit le JSON OpenWeatherMap en une ligne de DataFrame."""
-    run_hour = int(run_date.strftime("%Y%m%d%H"))
+    run_hour = int(run_date.strftime("%Y%m%d%H")) # calcul de l'IDTemps YYYYMMDDHH Ex: 2026-03-25 14:00 → 2026032514
 
     row = {
         "NomVille": raw.get("name"),
@@ -42,8 +42,8 @@ def flatten_openweathermap(raw, run_date):
 
 
 def flatten_aqicn(raw, run_date):
-    """Aplatit le JSON AQICN en une ligne de DataFrame."""
-    run_hour = int(run_date.strftime("%Y%m%d%H"))
+    """Aplatit le JSON AQICN en une ligne de DataFrame.""" 
+    run_hour = int(run_date.strftime("%Y%m%d%H")) # Ex: 2026-03-25 14:00 → 2026032514
     data = raw.get("data", {})
     iaqi = data.get("iaqi", {})
 
