@@ -33,19 +33,19 @@ GoodAirPipeline/
 └── README.md
 ```
 
-## Diagramme d'architecture de l'MVP
+## Diagramme d'architecture du MVP
 
-![Architecture MVP Good Air](images/ArchitectueMVPGoodAir.png)
+![Architecture MVP Good Air](images/ArchirectueMVPGoodAir.png)
 
 ## Schéma en étoile
 
 ![Schéma en étoile](images/SchemaEnEtoileGoodAir.png)
 
-## Diagramme de Sequence du pipeline
+## Diagramme de séquence du pipeline
 
 ![Diagramme de Sequence du pipeline](images/DiagrammeSequencePGoodAir.png)
 
-## Architecture d'Airflow utilisée
+## Architecture d'Airflow 3
 
 ![Architecture d'airflow](images/ArchitectureAiflow.png)
 
