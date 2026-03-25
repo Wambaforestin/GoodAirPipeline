@@ -2,9 +2,7 @@ import os
 import logging
 import json
 import urllib.parse
-from datetime import datetime
 
-import yaml
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from minio import Minio
@@ -14,8 +12,7 @@ load_dotenv()
 
 # Logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("goodair")
 
@@ -32,7 +29,7 @@ def get_sql_engine():
     )
     engine = create_engine(
         f"mssql+pyodbc:///?odbc_connect={params}",
-        connect_args={"fast_executemany": True}
+        connect_args={"fast_executemany": True},
     )
     return engine
 
@@ -43,22 +40,16 @@ def get_minio_client():
         endpoint=os.getenv("MINIO_ENDPOINT"),
         access_key=os.getenv("MINIO_ROOT_USER"),
         secret_key=os.getenv("MINIO_ROOT_PASSWORD"),
-        secure=False
+        secure=False,
     )
     return client
 
 
-def load_pipeline_config():
-    """Charge le fichier pipeline_config.yaml."""
-    config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config", "pipeline_config.yaml")
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
-    return config
-
-
 def load_cities_config():
     """Charge la liste des villes depuis cities_config.json."""
-    config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config", "cities_config.json")
+    config_path = os.path.join(
+        os.path.dirname(__file__), "..", "..", "config", "cities_config.json"
+    )
     with open(config_path, "r") as f:
         cities = json.load(f)
     return cities
@@ -66,7 +57,6 @@ def load_cities_config():
 
 def get_partition_path(api_name, run_date):
     """Génère le chemin de partitionnement Bronze/Silver à partir d'une date."""
-    # run_date est un datetime (logical_date d'Airflow)
     return (
         f"{api_name}/"
         f"year={run_date.strftime('%Y')}/"

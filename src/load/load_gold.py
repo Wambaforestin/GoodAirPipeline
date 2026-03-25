@@ -1,3 +1,4 @@
+import os
 from io import BytesIO
 
 import pandas as pd
@@ -8,7 +9,7 @@ from src.utils.connections import (
     get_minio_client,
     get_sql_engine,
     get_partition_path,
-    logger
+    logger,
 )
 
 
@@ -36,44 +37,62 @@ def load_to_staging(engine, df, run_date):
     """Insère les données Silver dans les 3 tables staging."""
 
     # DimLieux_Temp
-    dim_lieux_cols = ["NomVille", "CodePays", "Latitude", "Longitude"]
-    df_lieux = df[dim_lieux_cols].drop_duplicates(subset=["NomVille"])
+    df_lieux = df[["NomVille", "CodePays", "Latitude", "Longitude"]].drop_duplicates(
+        subset=["NomVille"]
+    )
 
     # DimTemps_Temp
     run_hour = int(run_date.strftime("%Y%m%d%H"))
-    df_temps = pd.DataFrame([{
-        "IDTemps": run_hour,
-        "DateHeure": run_date.strftime("%Y-%m-%d %H:00:00"),
-        "Annee": run_date.year,
-        "Mois": run_date.month,
-        "Jour": run_date.day,
-        "Heure": run_date.hour
-    }])
+    df_temps = pd.DataFrame(
+        [
+            {
+                "IDTemps": run_hour,
+                "DateHeure": run_date.strftime("%Y-%m-%d %H:00:00"),
+                "Annee": run_date.year,
+                "Mois": run_date.month,
+                "Jour": run_date.day,
+                "Heure": run_date.hour,
+            }
+        ]
+    )
 
     # FactMesures_Temp
     fact_cols = [
-        "NomVille", "IDTemps", "Temperature", "Humidite", "Pression",
-        "VitesseVent", "AqiGlobal", "PM25", "PM10", "NO2", "O3",
-        "MeteoStatus", "AirStatus"
+        "NomVille",
+        "IDTemps",
+        "Temperature",
+        "Humidite",
+        "Pression",
+        "VitesseVent",
+        "AqiGlobal",
+        "PM25",
+        "PM10",
+        "NO2",
+        "O3",
+        "MeteoStatus",
+        "AirStatus",
     ]
     df_facts = df[fact_cols].copy()
 
     # Insertion bulk
-    df_lieux.to_sql("DimLieux_Temp", engine, schema="Staging",
-                    if_exists="append", index=False)
+    df_lieux.to_sql(
+        "DimLieux_Temp", engine, schema="Staging", if_exists="append", index=False
+    )
     logger.info(f"{len(df_lieux)} villes insérées dans Staging.DimLieux_Temp")
 
-    df_temps.to_sql("DimTemps_Temp", engine, schema="Staging",
-                    if_exists="append", index=False)
+    df_temps.to_sql(
+        "DimTemps_Temp", engine, schema="Staging", if_exists="append", index=False
+    )
     logger.info(f"{len(df_temps)} lignes insérées dans Staging.DimTemps_Temp")
 
-    df_facts.to_sql("FactMesures_Temp", engine, schema="Staging",
-                    if_exists="append", index=False)
+    df_facts.to_sql(
+        "FactMesures_Temp", engine, schema="Staging", if_exists="append", index=False
+    )
     logger.info(f"{len(df_facts)} lignes insérées dans Staging.FactMesures_Temp")
 
 
 def execute_merge(engine, batch_id):
-    """Exécute le MERGE en 3 étapes séparées (évite les problèmes pyodbc multi-statements)."""
+    """Exécute le MERGE en 3 étapes séparées."""
 
     sql_dim_lieux = text("""
         INSERT INTO Gold.DimLieux (NomVille, CodePays, Latitude, Longitude)
@@ -148,7 +167,7 @@ def run_load(run_date, batch_id):
     """Point d'entrée du chargement. Appelé par le DAG Airflow."""
     minio_client = get_minio_client()
     engine = get_sql_engine()
-    silver_bucket = "silver"
+    silver_bucket = os.getenv("MINIO_BUCKET_SILVER")
 
     # Lire le Parquet Silver de l'heure en cours
     partition = get_partition_path("mesures", run_date)
@@ -166,12 +185,23 @@ def run_load(run_date, batch_id):
 
     # Data contract : vérifier les colonnes avant insertion
     expected_cols = [
-        "NomVille", "IDTemps", "Temperature", "Humidite", "Pression",
-        "VitesseVent", "AqiGlobal", "PM25", "PM10", "NO2", "O3",
-        "MeteoStatus", "AirStatus"
+        "NomVille",
+        "IDTemps",
+        "Temperature",
+        "Humidite",
+        "Pression",
+        "VitesseVent",
+        "AqiGlobal",
+        "PM25",
+        "PM10",
+        "NO2",
+        "O3",
+        "MeteoStatus",
+        "AirStatus",
     ]
-    assert all(col in df.columns for col in expected_cols), \
+    assert all(col in df.columns for col in expected_cols), (
         f"Colonnes manquantes. Attendu: {expected_cols}, Reçu: {list(df.columns)}"
+    )
 
     # Staging
     truncate_staging(engine)

@@ -1,3 +1,4 @@
+import os
 import json
 from io import BytesIO
 
@@ -12,6 +13,24 @@ from src.utils.connections import (
     get_partition_path,
     logger,
 )
+
+# Colonnes attendues après la fusion des deux sources
+ALL_EXPECTED_COLUMNS = [
+    "NomVille",
+    "CodePays",
+    "Latitude",
+    "Longitude",
+    "IDTemps",
+    "Temperature",
+    "Humidite",
+    "Pression",
+    "VitesseVent",
+    "AqiGlobal",
+    "PM25",
+    "PM10",
+    "NO2",
+    "O3",
+]
 
 
 def read_bronze_json(minio_client, bucket, object_path):
@@ -63,8 +82,21 @@ def flatten_aqicn(raw, city_name, run_date):
     return row
 
 
+def ensure_all_columns(df):
+    """Garantit que toutes les colonnes attendues existent dans le DataFrame.
+    Si une API n'a pas répondu, ses colonnes sont absentes → on les crée à NULL.
+    """
+    for col in ALL_EXPECTED_COLUMNS:
+        if col not in df.columns:
+            df[col] = pd.NA
+    return df
+
+
 def apply_cleaning_rules(df):
     """Applique les règles de nettoyage métier sur le DataFrame fusionné."""
+
+    # Garantir toutes les colonnes présentes
+    df = ensure_all_columns(df)
 
     # Typage strict - les valeurs non convertibles deviennent NULL
     numeric_cols = [
@@ -79,32 +111,24 @@ def apply_cleaning_rules(df):
         "O3",
     ]
     for col in numeric_cols:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+        df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # CodePays manquant → 'ND'
-    if "CodePays" in df.columns:
-        df["CodePays"] = df["CodePays"].fillna("ND")
+    df["CodePays"] = df["CodePays"].fillna("ND")
 
     # Statuts de source
-    meteo_present = "Temperature" in df.columns
-    air_present = "PM25" in df.columns
+    df["MeteoStatus"] = np.where(df["Temperature"].isna(), "FAILED", "OK")
+    df["AirStatus"] = np.where(df["PM25"].isna(), "FAILED", "OK")
 
-    df["MeteoStatus"] = (
-        np.where(df["Temperature"].isna(), "FAILED", "OK")
-        if meteo_present
-        else "FAILED"
-    )
-
-    df["AirStatus"] = (
-        np.where(df["PM25"].isna(), "FAILED", "OK") if air_present else "FAILED"
+    # DQ Flags (bornes de validité)
+    df["is_temp_valid"] = df["Temperature"].isna() | (
+        (df["Temperature"] >= -50) & (df["Temperature"] <= 60)
     )
 
     # Ligne morte : TOUTES les métriques sont NULL → rejet
     meteo_cols = ["Temperature", "Humidite", "Pression", "VitesseVent"]
     air_cols = ["AqiGlobal", "PM25", "PM10", "NO2", "O3"]
-    all_metrics = [c for c in meteo_cols + air_cols if c in df.columns]
-    dead_rows = df[all_metrics].isna().all(axis=1)
+    dead_rows = df[meteo_cols + air_cols].isna().all(axis=1)
 
     df_rejects = df[dead_rows].copy()
     df_valid = df[~dead_rows].copy()
@@ -146,8 +170,8 @@ def run_transform(run_date):
     """Point d'entrée de la transformation. Appelé par le DAG Airflow."""
     cities = load_cities_config()
     minio_client = get_minio_client()
-    bronze_bucket = "bronze"
-    silver_bucket = "silver"
+    bronze_bucket = os.getenv("MINIO_BUCKET_BRONZE")
+    silver_bucket = os.getenv("MINIO_BUCKET_SILVER")
 
     meteo_rows = []
     air_rows = []
@@ -181,7 +205,7 @@ def run_transform(run_date):
         logger.error("Aucune donnée Bronze disponible. Transformation annulée.")
         return False
 
-    # Fusion météo + air sur NomVille + IDTemps (les deux viennent du config → match garanti)
+    # Fusion météo + air sur NomVille + IDTemps
     if not df_meteo.empty and not df_air.empty:
         df_merged = pd.merge(df_meteo, df_air, on=["NomVille", "IDTemps"], how="outer")
     elif not df_meteo.empty:
@@ -189,7 +213,7 @@ def run_transform(run_date):
     else:
         df_merged = df_air
 
-    # Nettoyage
+    # Nettoyage (ensure_all_columns est appelé à l'intérieur)
     df_valid, df_rejects = apply_cleaning_rules(df_merged)
 
     # Sauvegarde Silver
