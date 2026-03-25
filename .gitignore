@@ -1,0 +1,24 @@
+# === Secrets & Environnement ===
+.env
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+
+# === Airflow ===
+logs/
+plugins/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === OS ===
+.DS_Store
+Thumbs.db

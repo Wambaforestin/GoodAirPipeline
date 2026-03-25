@@ -1,0 +1,45 @@
+# Couche Bronze (MinIO)
+bronze:
+  bucket: "bronze"
+  partitioning: "{api_name}/year={YYYY}/month={MM}/day={DD}/hour={HH}/"
+  format: "json"
+
+#  Couche Silver (MinIO)
+silver:
+  bucket: "silver"
+  partitioning: "mesures/year={YYYY}/month={MM}/day={DD}/hour={HH}/"
+  rejects_partitioning: "rejects/year={YYYY}/month={MM}/day={DD}/hour={HH}/"
+  format: "parquet"
+
+# Couche Staging (SQL Server) 
+staging:
+  table_name: "Staging.FactMesures_Temp"
+
+#  Couche Gold (SQL Server) 
+gold:
+  fact_table: "Gold.FactMesures"
+  dim_lieux_table: "Gold.DimLieux"
+  dim_temps_table: "Gold.DimTemps"
+
+# Colonnes d'audit (ajoutées sur Gold.FactMesures)
+audit_columns:
+  insert_timestamp: "DateInsertion"
+  update_timestamp: "DateModification"
+  run_identifier: "IDBatch"
+
+# Sources API
+api_sources:
+  openweathermap:
+    base_url: "https://api.openweathermap.org/data/2.5/weather"
+    params:
+      units: "metric"
+    bronze_prefix: "openweathermap"
+  aqicn:
+    base_url: "https://api.waqi.info/feed"
+    bronze_prefix: "aqicn"
+
+# --- Airflow ---
+scheduling:
+  interval: "@hourly"
+  retries: 2
+  retry_delay_minutes: 5
