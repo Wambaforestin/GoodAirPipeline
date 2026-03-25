@@ -43,11 +43,11 @@ GoodAirPipeline/
 
 ## Diagramme de Sequence du pipeline
 
-![Diagramme de Sequence du pipeline](images/DiagrammeSequenceGoodAir.png)
+![Diagramme de Sequence du pipeline](images/DiagrammeSequencePGoodAir.png)
 
 ## Architecture d'Airflow utilisée
 
-![Architecture d'airflow](images/ArchitectureAirflow.png)
+![Architecture d'airflow](images/ArchitectureAiflow.png)
 
 ## Démarrage Rapide
 
