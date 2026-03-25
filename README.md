@@ -39,7 +39,7 @@ GoodAirPipeline/
 
 ## Schéma en étoile
 
-![Schéma en étoile](images/SchemaEtoileGoodAir.png)
+![Schéma en étoile](images/SchemaEnEtoileGoodAir.png)
 
 ## Diagramme de Sequence du pipeline
 
