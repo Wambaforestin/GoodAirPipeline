@@ -121,6 +121,25 @@ AIRFLOW_FERNET_KEY=la_clé_générée_ici
 
 > Note : Dans ce projet, je n'utilise pas la version complet de l'image officielle d'Airflow car cela ajourte beaucoup de dépendances inutiles (celery, redis, etc.) qui alourdissent le build et ne sont pas nécessaires pour un MVP avec LocalExecutor. Certains clés doivent etre générées manuellement pour éviter les erreurs d'authentification entre les composants (scheduler, webserver, API server).
 
+## Sécurité Airflow : clés partagées obligatoires
+
+Airflow 3 utilise des secrets partagés pour sécuriser la communication entre ses services Docker (scheduler, API server, etc.). Deux variables **doivent** être identiques dans le `.env` :
+
+- `AIRFLOW__CORE__FERNET_KEY` :
+  - Sert à chiffrer les données sensibles (mots de passe, variables) dans la base PostgreSQL.
+  - Si la clé est vide (`''`), chaque conteneur Airflow en génère une différente au démarrage → les services ne peuvent pas déchiffrer les données des autres.
+  - **Solution :** générez une clé Fernet et renseignez-la dans le `.env` pour tous les services.
+
+- `AIRFLOW__API_AUTH__JWT_SECRET` :
+  - Depuis Airflow 3, le scheduler ne pilote plus les tâches en écrivant directement en base, mais via des appels HTTP REST à l’API server.
+  - Ces appels sont authentifiés par des tokens JWT signés avec ce secret.
+  - Si le secret n’est pas fixé, chaque service en génère un différent → échec de la validation des tokens (`Invalid auth token: Signature verification failed`).
+  - **Solution :** définissez une valeur fixe et identique dans le `.env` pour tous les services.
+
+> Ces deux variables règlent le même type de problème : des services Docker séparés qui doivent partager un secret identique pour communiquer et chiffrer/déchiffrer les données.
+
+**Référence :** [Bug connu Airflow 3.x sur GitHub](https://github.com/apache/airflow/issues/37500)
+
 ## Équipe
 
 Projet MSPR — EPSI (Bloc 3 RNCP36921)
