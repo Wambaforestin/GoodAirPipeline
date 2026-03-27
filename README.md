@@ -6,7 +6,7 @@ Le laboratoire GoodAir (TotalGreen) étudie la qualité de l'air en France. Ses 
 
 Ce pipeline résout ce problème : il collecte automatiquement les données chaque heure, les nettoie, et les stocke dans un Data Warehouse prêt pour la visualisation (Power BI, Tableau).
 
-## Ce que j'ai construit
+## Le projet: Pipeline ETL horaire de qualité de l'air
 
 Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 
