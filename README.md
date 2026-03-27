@@ -26,7 +26,7 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 | **Time Bucketing** | On ignore les timestamps des APIs (décalages réseau) et on utilise l'heure Airflow. Garantit 1 ligne = 1 heure pile                       | Timestamp API (non déterministe)                   |
 | **Config JSON**    | Ajouter une ville = ajouter une ligne, zéro code à modifier                                                                               | Table SQL Ref.VillesCibles (prévu en V2)           |
 
-## Les problèmes rencontrés et comment je les ai résolus
+## Les problèmes rencontrés et comment elles ont été résolus
 
 - **Airflow 3 : "Invalid auth token"** — bug connu ([GitHub #59373](https://github.com/apache/airflow/issues/59373)). Les services Docker Airflow génèrent chacun un JWT secret différent au démarrage. Résolu en fixant `AIRFLOW__API_AUTH__JWT_SECRET` dans le docker-compose.
 - **NomVille incohérent entre APIs** — OpenWeatherMap renvoie "Paris", AQICN renvoie "Paris, Champs-Élysées". Le merge sur NomVille échouait. Résolu en utilisant le nom du fichier config comme source unique de vérité.
