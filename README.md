@@ -1,39 +1,39 @@
 # GoodAir Pipeline
 
-Pipeline ETL horaire pour le laboratoire GoodAir (TotalGreen).  
-Collecte des données météorologiques (OpenWeatherMap) et de qualité de l'air (AQICN) pour les principales villes de France.
+## Le problème
+
+Le laboratoire GoodAir (TotalGreen) étudie la qualité de l'air en France. Ses chercheurs ont besoin de données météo et pollution fiables, historisées heure par heure, pour leurs analyses. Aujourd'hui, ces données existent dans des APIs publiques (OpenWeatherMap, AQICN) mais elles sont temps réel uniquement : si personne ne les capture, elles sont perdues.
+
+Ce pipeline résout ce problème : il collecte automatiquement les données chaque heure, les nettoie, et les stocke dans un Data Warehouse prêt pour la visualisation (Power BI, Tableau).
+
+## Ce que j'ai construit
+
+Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
+
+1. **Extract** — appelle 2 APIs (météo + qualité de l'air) pour 10 villes françaises, stocke les réponses JSON brutes dans un Data Lake (MinIO)
+2. **Transform** — aplatit les JSON, fusionne les deux sources, applique des règles de nettoyage métier (typage, gestion des NULL, détection de pannes partielles), écrit en Parquet
+3. **Load** — insère dans des tables staging SQL Server, puis exécute un MERGE (UPSERT) vers le Data Warehouse final
+4. **Orchestration** — Apache Airflow 3 déclenche le tout automatiquement, gère les retries, et logge chaque exécution
+
+## Pourquoi ces choix techniques
+
+| Choix              | Pourquoi                                                                                                                                  | Alternative envisagée                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| **LocalExecutor**  | 10 villes, 1 DAG horaire → pas besoin de workers distribués. Économise 3 conteneurs et ~1 Go de RAM                                       | CeleryExecutor (prévu si le volume augmente)       |
+| **MinIO**          | S3-compatible, tourne en local, gratuit. Simule un vrai Data Lake sans dépendre du cloud                                                  | Stockage fichier local (pas S3-compatible)         |
+| **Star schema**    | Une seule table de faits (1 ligne = 1 ville × 1 heure) simplifie les requêtes BI. Les chercheurs n'ont pas à faire de jointures complexes | Tables séparées météo/air (jointures obligatoires) |
+| **Pandas**         | Compatibilité native avec SQLAlchemy + pyodbc + fast_executemany. Volume < 1M lignes                                                      | Polars (envisagé en V2 si les volumes augmentent)  |
+| **Time Bucketing** | On ignore les timestamps des APIs (décalages réseau) et on utilise l'heure Airflow. Garantit 1 ligne = 1 heure pile                       | Timestamp API (non déterministe)                   |
+| **Config JSON**    | Ajouter une ville = ajouter une ligne, zéro code à modifier                                                                               | Table SQL Ref.VillesCibles (prévu en V2)           |
+
+## Les problèmes rencontrés et comment je les ai résolus
+
+- **Airflow 3 : "Invalid auth token"** — bug connu ([GitHub #59373](https://github.com/apache/airflow/issues/59373)). Les services Docker Airflow génèrent chacun un JWT secret différent au démarrage. Résolu en fixant `AIRFLOW__API_AUTH__JWT_SECRET` dans le docker-compose.
+- **NomVille incohérent entre APIs** — OpenWeatherMap renvoie "Paris", AQICN renvoie "Paris, Champs-Élysées". Le merge sur NomVille échouait. Résolu en utilisant le nom du fichier config comme source unique de vérité.
+- **Pannes partielles d'API** — une station AQICN peut ne pas mesurer PM2.5 (ex: Lyon) mais renvoyer PM10 et NO2. Le statut `AirStatus` marquait `FAILED` à tort. Corrigé pour ne marquer `FAILED` que si aucune métrique air n'est remplie.
+- **SQL Server mange toute la RAM Docker** — par défaut SQL Server consomme toute la mémoire disponible. Limité via `MSSQL_MEMORY_LIMIT_MB: 1024` + `mem_limit: 2g` dans le docker-compose.
 
 ## Architecture
-
-- **Orchestration** : Apache Airflow 3 (LocalExecutor)
-- **Data Lake** : MinIO (couches Bronze / Silver)
-- **Data Warehouse** : SQL Server 2022 (star schema — Gold)
-- **Langage** : Python (pandas, pyarrow, SQLAlchemy, pyodbc)
-- **Infra** : Docker Compose
-
-## Structure du Projet
-
-```
-GoodAirPipeline/
-├── dags/                  # DAGs Airflow
-├── src/                   # Code source modulaire
-│   ├── extract/           # Appels API → Bronze
-│   ├── transform/         # Nettoyage & DQ → Silver
-│   ├── load/              # Insertion SQL → Gold
-│   ├── utils/             # Fonctions utilitaires
-│   └── sql/               # Scripts .sql (MERGE, DDL)
-├── tests/                 # Tests unitaires (Pytest)
-├── config/
-│   ├── cities_config.json
-│   └── pipeline_config.yaml
-├── .env.example           # Template des variables d'environnement
-├── docker-compose.yml
-├── Dockerfile             # Image Airflow custom (ODBC + dépendances)
-├── pyproject.toml         # Dépendances (uv)
-└── README.md
-```
-
-## Diagramme d'architecture du MVP
 
 ![Architecture MVP Good Air](images/ArchirectureMVPGoodAir.png)
 
@@ -49,112 +49,107 @@ GoodAirPipeline/
 
 ![Architecture d'airflow](images/ArchitectureAiflow.png)
 
-## Prérequis
+## Structure du Projet
 
-- Docker Desktop installé et lancé (allouer au moins 4 Go de RAM)
-- Git Bash (ou terminal VS Code)
-- uv (gestionnaire de paquets Python)
+```text
+GoodAirPipeline/
+├── dags/                  # DAGs Airflow
+├── src/
+│   ├── extract/           # Appels API → Bronze (JSON brut dans MinIO)
+│   ├── transform/         # Nettoyage & DQ → Silver (Parquet dans MinIO)
+│   ├── load/              # Staging → MERGE → Gold (SQL Server)
+│   ├── utils/             # Connexions DB, MinIO, config, logging
+│   └── sql/               # Scripts DDL, MERGE, Data Catalog
+├── tests/                 # Tests unitaires (Pytest)
+├── config/
+│   ├── cities_config.json # Villes à surveiller (pilotage par config)
+│   └── pipeline_config.yaml
+├── .env.example           # Template des variables d'environnement
+├── docker-compose.yml     # Infra complète (Airflow + SQL Server + MinIO)
+├── Dockerfile             # Image Airflow custom (ODBC + dépendances)
+├── DATA_CATALOG.md        # Documentation des tables et colonnes
+├── pyproject.toml         # Dépendances Python (uv)
+└── README.md
+```
 
-## Démarrage Rapide
+## Quickstart
 
 ```bash
-# 1. Copier et configurer les variables d'environnement
+# 1. Cloner et configurer
+git clone https://github.com/Wambaforestin/GoodAirPipeline.git
+cd GoodAirPipeline
 cp .env.example .env
 # Remplir les clés API et mots de passe dans .env
 
-# 2. Initialiser Airflow (attendre le message de fin)
+# 2. Construire et lancer
+docker compose build
 docker compose up airflow-init
-
-# 3. Lancer tous les services en arrière-plan
 docker compose up -d
 
-# 4. Vérifier que tout est healthy
-docker compose ps
+# 3. Vérifier
+docker compose ps    # Tout doit être "healthy"
 ```
 
 ## Accès aux services
 
-| Service | URL | Identifiants |
-|---------|-----|-------------|
-| Airflow | http://localhost:8081 | airflow / airflow |
-| MinIO Console | http://localhost:9001 | admin / (voir .env) |
-| SQL Server | localhost:1433 | sa / (voir .env) |
+| Service           | URL                   | Identifiants     |
+| ----------------- | --------------------- | ---------------- |
+| Airflow           | http://localhost:8081 | (voir .env)      |
+| MinIO Console     | http://localhost:9001 | (voir .env)      |
+| SQL Server (SSMS) | localhost,1433        | sa / (voir .env) |
 
-> Le port d'Airflow est configuré sur 8081 pour éviter les conflits avec d'autres services locaux.
+## Stack technique
+
+- **Orchestration** : Apache Airflow 3 (LocalExecutor)
+- **Data Lake** : MinIO (Bronze JSON / Silver Parquet)
+- **Data Warehouse** : SQL Server 2022 (star schema)
+- **Langage** : Python 3.12 (pandas, pyarrow, SQLAlchemy, pyodbc)
+- **Infra** : Docker Compose
+- **Gestionnaire de paquets** : uv
+
+## Sources de Données
+
+| Source         | API                 | Données collectées                                     |
+| -------------- | ------------------- | ------------------------------------------------------ |
+| OpenWeatherMap | `/data/2.5/weather` | Température, Humidité, Pression, Vent, Coordonnées GPS |
+| AQICN          | `/feed/{city}/`     | AQI global, PM2.5, PM10, NO2, O3                       |
+
+## Sécurité Airflow
+
+Airflow 3 nécessite deux secrets partagés entre ses services Docker :
+
+- **`AIRFLOW_FERNET_KEY`** — chiffre les données sensibles dans PostgreSQL. Générer avec :
+  
+  ```bash
+  docker compose exec airflow-apiserver python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+  ```
+
+- **`AIRFLOW__API_AUTH__JWT_SECRET`** — signe les tokens JWT pour la communication scheduler ↔ API server. Définir une valeur fixe dans le docker-compose.
+
+Sans ces deux clés, les tasks échouent avec `Invalid auth token: Signature verification failed`.
 
 ## Maintenance
 
 ```bash
-# Arrêter les services
+# Arrêter les services (données préservées)
 docker compose down
 
-# Arrêter et supprimer toutes les données (reset complet)
+# Reset complet (supprime toutes les données)
 docker compose down --volumes --remove-orphans
+
+# Reconstruire après modification du Dockerfile
+docker compose build --no-cache
 ```
 
-## Sources de Données
+## Prochaines étapes
 
-| Source | API | Données |
-|--------|-----|---------|
-| OpenWeatherMap | `/data/2.5/weather` | Température, Humidité, Pression, Vent |
-| AQICN | `/feed/{city}/` | AQI, PM2.5, PM10, NO2, O3 |
-
-## Génération de la clé Fernet (sécurité Airflow)
-
-Airflow nécessite une clé Fernet pour chiffrer les connexions et variables. Si la variable `AIRFLOW_FERNET_KEY` n'est pas renseignée dans votre `.env`, vous aurez une erreur du type :
-
-```
-Invalid auth token: Signature verification failed. C'est la FERNET_KEY qui est vide dans le docker-compose. Le scheduler n'arrive pas à s'authentifier auprès de l'API server.
-```
-
-Pour générer une clé Fernet, exécutez dans Git Bash :
-
-```bash
-docker compose exec airflow-apiserver python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-Copiez la clé générée, puis ajoutez-la dans votre `.env` :
-
-```
-AIRFLOW_FERNET_KEY=la_clé_générée_ici
-```
-
-> Note : Dans ce projet, je n'utilise pas la version complet de l'image officielle d'Airflow car cela ajourte beaucoup de dépendances inutiles (celery, redis, etc.) qui alourdissent le build et ne sont pas nécessaires pour un MVP avec LocalExecutor. Certains clés doivent etre générées manuellement pour éviter les erreurs d'authentification entre les composants (scheduler, webserver, API server).
-
-## Sécurité Airflow : clés partagées obligatoires
-
-Airflow 3 utilise des secrets partagés pour sécuriser la communication entre ses services Docker (scheduler, API server, etc.). Deux variables **doivent** être identiques dans le `.env` :
-
-- `AIRFLOW__CORE__FERNET_KEY` :
-  - Sert à chiffrer les données sensibles (mots de passe, variables) dans la base PostgreSQL.
-  - Si la clé est vide (`''`), chaque conteneur Airflow en génère une différente au démarrage → les services ne peuvent pas déchiffrer les données des autres.
-  - **Solution :** générez une clé Fernet et renseignez-la dans le `.env` pour tous les services.
-
-- `AIRFLOW__API_AUTH__JWT_SECRET` :
-  - Depuis Airflow 3, le scheduler ne pilote plus les tâches en écrivant directement en base, mais via des appels HTTP REST à l’API server.
-  - Ces appels sont authentifiés par des tokens JWT signés avec ce secret.
-  - Si le secret n’est pas fixé, chaque service en génère un différent → échec de la validation des tokens (`Invalid auth token: Signature verification failed`).
-  - **Solution :** définissez une valeur fixe et identique dans le `.env` pour tous les services.
-
-> Ces deux variables règlent le même type de problème : des services Docker séparés qui doivent partager un secret identique pour communiquer et chiffrer/déchiffrer les données.
-
-**Référence :** [Bug connu Airflow 3.x sur GitHub](https://github.com/apache/airflow/issues/37500)
-
-## Installation des dépendances Python (uv)
-
-Si vous n'avez pas encore installé `uv` :
-
-```bash
-pip install uv
-```
-
-Ensuite, pour installer toutes les dépendances du projet :
-
-```bash
-uv sync
-```
-
-> `uv` est un gestionnaire de paquets Python ultra-rapide compatible avec pyproject.toml.
+- [ ] Rôles et permissions SQL Server (Role_Chercheur, Role_Directeur, Role_RSSI)
+- [ ] Alertes Slack/Email en cas d'échec du pipeline
+- [ ] Création d'utilisateurs Airflow avec rôles distincts
+- [ ] Tests unitaires (Pytest)
+- [ ] Connexion Power BI / Tableau au Data Warehouse
+- [ ] Migration du pilotage par config JSON vers table SQL `Ref.VillesCibles`
+- [ ] Optimisation Polars si volumes > 1M lignes
 
 ## Équipe
 
