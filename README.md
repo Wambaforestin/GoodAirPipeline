@@ -35,7 +35,7 @@ GoodAirPipeline/
 
 ## Diagramme d'architecture du MVP
 
-![Architecture MVP Good Air](images/ArchirectueMVPGoodAir.png)
+![Architecture MVP Good Air](images/ArchitectueMVPGoodAir.png)
 
 ## Schéma en étoile
 
@@ -139,6 +139,22 @@ Airflow 3 utilise des secrets partagés pour sécuriser la communication entre s
 > Ces deux variables règlent le même type de problème : des services Docker séparés qui doivent partager un secret identique pour communiquer et chiffrer/déchiffrer les données.
 
 **Référence :** [Bug connu Airflow 3.x sur GitHub](https://github.com/apache/airflow/issues/37500)
+
+## Installation des dépendances Python (uv)
+
+Si vous n'avez pas encore installé `uv` :
+
+```bash
+pip install uv
+```
+
+Ensuite, pour installer toutes les dépendances du projet :
+
+```bash
+uv sync
+```
+
+> `uv` est un gestionnaire de paquets Python ultra-rapide compatible avec pyproject.toml.
 
 ## Équipe
 
