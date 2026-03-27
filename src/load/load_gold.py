@@ -9,7 +9,7 @@ from src.utils.connections import (
     get_minio_client,
     get_sql_engine,
     get_partition_path,
-    logger,
+    logger
 )
 
 
@@ -37,57 +37,38 @@ def load_to_staging(engine, df, run_date):
     """Insère les données Silver dans les 3 tables staging."""
 
     # DimLieux_Temp
-    df_lieux = df[["NomVille", "CodePays", "Latitude", "Longitude"]].drop_duplicates(
-        subset=["NomVille"]
-    )
+    df_lieux = df[["NomVille", "CodePays", "Latitude", "Longitude"]].drop_duplicates(subset=["NomVille"])
 
     # DimTemps_Temp
     run_hour = int(run_date.strftime("%Y%m%d%H"))
-    df_temps = pd.DataFrame(
-        [
-            {
-                "IDTemps": run_hour,
-                "DateHeure": run_date.strftime("%Y-%m-%d %H:00:00"),
-                "Annee": run_date.year,
-                "Mois": run_date.month,
-                "Jour": run_date.day,
-                "Heure": run_date.hour,
-            }
-        ]
-    )
+    df_temps = pd.DataFrame([{
+        "IDTemps": run_hour,
+        "DateHeure": run_date.strftime("%Y-%m-%d %H:00:00"),
+        "Annee": run_date.year,
+        "Mois": run_date.month,
+        "Jour": run_date.day,
+        "Heure": run_date.hour
+    }])
 
     # FactMesures_Temp
     fact_cols = [
-        "NomVille",
-        "IDTemps",
-        "Temperature",
-        "Humidite",
-        "Pression",
-        "VitesseVent",
-        "AqiGlobal",
-        "PM25",
-        "PM10",
-        "NO2",
-        "O3",
-        "MeteoStatus",
-        "AirStatus",
+        "NomVille", "IDTemps", "Temperature", "Humidite", "Pression",
+        "VitesseVent", "AqiGlobal", "PM25", "PM10", "NO2", "O3",
+        "MeteoStatus", "AirStatus"
     ]
     df_facts = df[fact_cols].copy()
 
     # Insertion bulk
-    df_lieux.to_sql(
-        "DimLieux_Temp", engine, schema="Staging", if_exists="append", index=False
-    )
+    df_lieux.to_sql("DimLieux_Temp", engine, schema="Staging",
+                    if_exists="append", index=False)
     logger.info(f"{len(df_lieux)} villes insérées dans Staging.DimLieux_Temp")
 
-    df_temps.to_sql(
-        "DimTemps_Temp", engine, schema="Staging", if_exists="append", index=False
-    )
+    df_temps.to_sql("DimTemps_Temp", engine, schema="Staging",
+                    if_exists="append", index=False)
     logger.info(f"{len(df_temps)} lignes insérées dans Staging.DimTemps_Temp")
 
-    df_facts.to_sql(
-        "FactMesures_Temp", engine, schema="Staging", if_exists="append", index=False
-    )
+    df_facts.to_sql("FactMesures_Temp", engine, schema="Staging",
+                    if_exists="append", index=False)
     logger.info(f"{len(df_facts)} lignes insérées dans Staging.FactMesures_Temp")
 
 
@@ -135,7 +116,8 @@ def execute_merge(engine, batch_id):
             target.O3 = source.O3,
             target.MeteoStatus = source.MeteoStatus,
             target.AirStatus = source.AirStatus,
-            target.DateModification = GETDATE()
+            target.DateModification = GETDATE(),
+            target.IDBatch = :batch_id
 
         WHEN NOT MATCHED THEN INSERT (
             IDLieu, IDTemps, Temperature, Humidite, Pression, VitesseVent,
@@ -185,23 +167,12 @@ def run_load(run_date, batch_id):
 
     # Data contract : vérifier les colonnes avant insertion
     expected_cols = [
-        "NomVille",
-        "IDTemps",
-        "Temperature",
-        "Humidite",
-        "Pression",
-        "VitesseVent",
-        "AqiGlobal",
-        "PM25",
-        "PM10",
-        "NO2",
-        "O3",
-        "MeteoStatus",
-        "AirStatus",
+        "NomVille", "IDTemps", "Temperature", "Humidite", "Pression",
+        "VitesseVent", "AqiGlobal", "PM25", "PM10", "NO2", "O3",
+        "MeteoStatus", "AirStatus"
     ]
-    assert all(col in df.columns for col in expected_cols), (
+    assert all(col in df.columns for col in expected_cols), \
         f"Colonnes manquantes. Attendu: {expected_cols}, Reçu: {list(df.columns)}"
-    )
 
     # Staging
     truncate_staging(engine)
