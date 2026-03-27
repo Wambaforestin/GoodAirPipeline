@@ -35,7 +35,7 @@ GoodAirPipeline/
 
 ## Diagramme d'architecture du MVP
 
-![Architecture MVP Good Air](images/ArchitectueMVPGoodAir.png)
+![Architecture MVP Good Air](images/ArchirectureMVPGoodAir.png)
 
 ## Schéma en étoile
 
