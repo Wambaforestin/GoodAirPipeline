@@ -98,6 +98,28 @@ docker compose ps    # Tout doit être "healthy"
 | MinIO Console     | http://localhost:9001 | (voir .env)      |
 | SQL Server (SSMS) | localhost,1433        | sa / (voir .env) |
 
+## Requêtes SQL utiles pour le Data Warehouse
+
+Pour faire des checks rapides dans le Data Warehouse (GoodAirDW) :
+
+```sql
+USE GoodAirDW;
+GO
+
+SELECT * FROM Gold.DimLieux;
+SELECT * FROM Gold.DimTemps;
+SELECT * FROM Gold.FactMesures;
+
+-- Trouver les runs manuels
+SELECT * FROM Gold.FactMesures WHERE IDBatch LIKE 'manual%';
+     
+-- Trouver les runs schedulés
+SELECT * FROM Gold.FactMesures WHERE IDBatch LIKE 'scheduled%';
+
+-- Nombre de lignes dans FactMesures
+SELECT COUNT(*) AS 'Nombre de lignes' FROM Gold.FactMesures;
+```
+
 ## Stack technique
 
 - **Orchestration** : Apache Airflow 3 (LocalExecutor)
