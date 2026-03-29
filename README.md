@@ -26,12 +26,13 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 | **Time Bucketing** | On ignore les timestamps des APIs (décalages réseau) et on utilise l'heure Airflow. Garantit 1 ligne = 1 heure pile                       | Timestamp API (non déterministe)                   |
 | **Config JSON**    | Ajouter une ville = ajouter une ligne, zéro code à modifier                                                                               | Table SQL Ref.VillesCibles (prévu en V2)           |
 
-## Les problèmes rencontrés et comment elles ont été résolus
+## Les problèmes rencontrés et comment ils ont été résolus
 
 - **Airflow 3 : "Invalid auth token"** — bug connu ([GitHub #59373](https://github.com/apache/airflow/issues/59373)). Les services Docker Airflow génèrent chacun un JWT secret différent au démarrage. Résolu en fixant `AIRFLOW__API_AUTH__JWT_SECRET` dans le docker-compose.
 - **NomVille incohérent entre APIs** — OpenWeatherMap renvoie "Paris", AQICN renvoie "Paris, Champs-Élysées". Le merge sur NomVille échouait. Résolu en utilisant le nom du fichier config comme source unique de vérité.
 - **Pannes partielles d'API** — une station AQICN peut ne pas mesurer PM2.5 (ex: Lyon) mais renvoyer PM10 et NO2. Le statut `AirStatus` marquait `FAILED` à tort. Corrigé pour ne marquer `FAILED` que si aucune métrique air n'est remplie.
 - **SQL Server mange toute la RAM Docker** — par défaut SQL Server consomme toute la mémoire disponible. Limité via `MSSQL_MEMORY_LIMIT_MB: 1024` + `mem_limit: 2g` dans le docker-compose.
+- **Décalage horaire IDTemps vs heure locale** — Airflow passe le `logical_date` toujours en UTC en interne, même avec `DEFAULT_TIMEZONE: Europe/Paris`. L'IDTemps et les dates d'audit ne correspondaient pas à l'heure Paris. Résolu en ajoutant une conversion `to_paris_time()` dans le DAG (via `zoneinfo.ZoneInfo`) et en remplaçant `GETDATE()` par `GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard Time'` dans le MERGE SQL. j'ai du supprimer une bonne partie de mes données déjà collectées pour corriger les IDTemps car cela aurait créé un mélange de données avec IDTemps en UTC et d'autres en heure Paris afin d'éviter=l'incohérence dans le Data Warehouse.
 
 ## Architecture
 
@@ -98,9 +99,37 @@ docker compose ps    # Tout doit être "healthy"
 | MinIO Console     | http://localhost:9001 | (voir .env)      |
 | SQL Server (SSMS) | localhost,1433        | sa / (voir .env) |
 
-## Requêtes SQL utiles pour le Data Warehouse
+## Fuseau horaire
 
-Pour faire des checks rapides dans le Data Warehouse (GoodAirDW) :
+### Choix : Europe/Paris
+
+Le pipeline est configuré pour que l'IDTemps (clé temporelle du Data Warehouse) corresponde à l'heure locale française. Quand il est 12h à Paris, l'IDTemps enregistré est `...12`.
+
+**Implémentation (2 niveaux) :**
+
+1. **Docker-compose** — l'interface Airflow et le scheduling affichent l'heure Paris :
+  
+   ```yaml
+   AIRFLOW__CORE__DEFAULT_TIMEZONE: 'Europe/Paris'
+   AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: 'Europe/Paris'
+   ```
+
+2. **Code Python** — le `logical_date` d'Airflow est toujours en UTC en interne. Une fonction `to_paris_time()` dans `connections.py` convertit le datetime UTC en heure Paris avant de générer l'IDTemps. Les dates d'audit SQL (`DateInsertion`, `DateModification`) utilisent `GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard Time'` pour rester cohérentes.
+
+### Alternative non retenue : UTC avec affichage Paris
+
+Garder le scheduling et les données en UTC, et ne changer que l'affichage de l'interface Airflow. C'est l'approche standard en entreprise pour les pipelines multi-pays. Non retenue ici car elle crée un décalage de 1 à 2 heures entre l'IDTemps et l'heure réelle française.
+
+### DST (Changement d'heure)
+
+Le DST se produit 2 fois par an en France :
+
+- **Heure d'été (dernier dimanche de mars)** : à 2h → 3h. L'intervalle 2h-3h n'existe pas → un trou d'1 heure possible dans les données.
+- **Heure d'hiver (dernier dimanche d'octobre)** : à 3h → 2h. L'intervalle 2h-3h existe deux fois → conflit résolu par le retry Airflow et le MERGE (UPSERT).
+
+Prochain changement : 25 octobre 2026.
+
+## Requêtes SQL utiles
 
 ```sql
 USE GoodAirDW;
@@ -110,14 +139,18 @@ SELECT * FROM Gold.DimLieux;
 SELECT * FROM Gold.DimTemps;
 SELECT * FROM Gold.FactMesures;
 
--- Trouver les runs manuels
+-- Runs manuels vs schedulés
 SELECT * FROM Gold.FactMesures WHERE IDBatch LIKE 'manual%';
-     
--- Trouver les runs schedulés
 SELECT * FROM Gold.FactMesures WHERE IDBatch LIKE 'scheduled%';
 
 -- Nombre de lignes dans FactMesures
-SELECT COUNT(*) AS 'Nombre de lignes' FROM Gold.FactMesures;
+SELECT COUNT(*) AS NbLignes FROM Gold.FactMesures;
+
+-- Nombre de villes par créneau horaire
+SELECT IDTemps, COUNT(*) AS NbVilles
+FROM Gold.FactMesures
+GROUP BY IDTemps
+ORDER BY IDTemps;
 ```
 
 ## Stack technique
@@ -141,7 +174,7 @@ SELECT COUNT(*) AS 'Nombre de lignes' FROM Gold.FactMesures;
 Airflow 3 nécessite deux secrets partagés entre ses services Docker :
 
 - **`AIRFLOW_FERNET_KEY`** — chiffre les données sensibles dans PostgreSQL. Générer avec :
-  
+
   ```bash
   docker compose exec airflow-apiserver python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
   ```
