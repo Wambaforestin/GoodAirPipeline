@@ -2,6 +2,7 @@ import os
 import logging
 import json
 import urllib.parse
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -10,11 +11,20 @@ from minio import Minio
 # Charger les variables d'environnement
 load_dotenv()
 
+# Fuseau horaire du projet
+PARIS_TZ = ZoneInfo("Europe/Paris")
+
 # Logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("goodair")
+
+
+def to_paris_time(dt):
+    """Convertit un datetime UTC (logical_date Airflow) en heure Paris."""
+    return dt.astimezone(PARIS_TZ)
 
 
 def get_sql_engine():
@@ -29,7 +39,7 @@ def get_sql_engine():
     )
     engine = create_engine(
         f"mssql+pyodbc:///?odbc_connect={params}",
-        connect_args={"fast_executemany": True},
+        connect_args={"fast_executemany": True}
     )
     return engine
 
@@ -40,16 +50,14 @@ def get_minio_client():
         endpoint=os.getenv("MINIO_ENDPOINT"),
         access_key=os.getenv("MINIO_ROOT_USER"),
         secret_key=os.getenv("MINIO_ROOT_PASSWORD"),
-        secure=False,
+        secure=False
     )
     return client
 
 
 def load_cities_config():
     """Charge la liste des villes depuis cities_config.json."""
-    config_path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "config", "cities_config.json"
-    )
+    config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config", "cities_config.json")
     with open(config_path, "r") as f:
         cities = json.load(f)
     return cities

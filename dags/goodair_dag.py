@@ -6,6 +6,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from src.extract.extract_apis import run_extract
 from src.transform.transform_silver import run_transform
 from src.load.load_gold import run_load
+from src.utils.connections import to_paris_time
 
 
 default_args = {
@@ -25,17 +26,17 @@ with DAG(
 ) as dag:
 
     def task_extract(**kwargs):
-        run_date = kwargs["logical_date"]
+        run_date = to_paris_time(kwargs["logical_date"])
         run_extract(run_date)
 
     def task_transform(**kwargs):
-        run_date = kwargs["logical_date"]
+        run_date = to_paris_time(kwargs["logical_date"])
         success = run_transform(run_date)
         if not success:
             raise ValueError("Transformation échouée : aucune donnée valide.")
 
     def task_load(**kwargs):
-        run_date = kwargs["logical_date"]
+        run_date = to_paris_time(kwargs["logical_date"])
         batch_id = kwargs["run_id"]
         run_load(run_date, batch_id)
 
