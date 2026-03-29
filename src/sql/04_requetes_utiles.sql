@@ -80,7 +80,7 @@ SELECT * FROM Ref.Pays;
 SELECT * FROM Ref.DataCatalog ORDER BY NomSchema, NomTable, IDCatalog;
 
 -- Data Catalog : colonnes d'une table spécifique
-SELECT NomColonne, TypeDonnee, SourceAPI, CheminJSON, Description
+SELECT NomColonne, TypeSQL, SourceAPI, CheminJSON, Description
 FROM Ref.DataCatalog
 WHERE NomTable = 'FactMesures'
 ORDER BY IDCatalog;
