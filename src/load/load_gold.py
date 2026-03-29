@@ -116,7 +116,7 @@ def execute_merge(engine, batch_id):
             target.O3 = source.O3,
             target.MeteoStatus = source.MeteoStatus,
             target.AirStatus = source.AirStatus,
-            target.DateModification = GETDATE(),
+            target.DateModification = GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard Time',
             target.IDBatch = :batch_id
 
         WHEN NOT MATCHED THEN INSERT (
@@ -128,7 +128,10 @@ def execute_merge(engine, batch_id):
             source.IDLieu, source.IDTemps, source.Temperature, source.Humidite,
             source.Pression, source.VitesseVent, source.AqiGlobal, source.PM25,
             source.PM10, source.NO2, source.O3,
-            source.MeteoStatus, source.AirStatus, GETDATE(), GETDATE(), :batch_id
+            source.MeteoStatus, source.AirStatus,
+            GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard Time',
+            GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard Time',
+            :batch_id
         );
     """)
 
