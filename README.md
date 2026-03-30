@@ -28,11 +28,16 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 
 ## Les problèmes rencontrés et comment ils ont été résolus
 
-- **Airflow 3 : "Invalid auth token"** — bug connu ([GitHub #59373](https://github.com/apache/airflow/issues/59373)). Les services Docker Airflow génèrent chacun un JWT secret différent au démarrage. Résolu en fixant `AIRFLOW__API_AUTH__JWT_SECRET` dans le docker-compose.
-- **NomVille incohérent entre APIs** — OpenWeatherMap renvoie "Paris", AQICN renvoie "Paris, Champs-Élysées". Le merge sur NomVille échouait. Résolu en utilisant le nom du fichier config comme source unique de vérité.
-- **Pannes partielles d'API** — une station AQICN peut ne pas mesurer PM2.5 (ex: Lyon) mais renvoyer PM10 et NO2. Le statut `AirStatus` marquait `FAILED` à tort. Corrigé pour ne marquer `FAILED` que si aucune métrique air n'est remplie.
-- **SQL Server mange toute la RAM Docker** — par défaut SQL Server consomme toute la mémoire disponible. Limité via `MSSQL_MEMORY_LIMIT_MB: 1024` + `mem_limit: 2g` dans le docker-compose.
-- **Décalage horaire IDTemps vs heure locale** — Airflow passe le `logical_date` toujours en UTC en interne, même avec `DEFAULT_TIMEZONE: Europe/Paris`. L'IDTemps et les dates d'audit ne correspondaient pas à l'heure Paris. Résolu en ajoutant une conversion `to_paris_time()` dans le DAG (via `zoneinfo.ZoneInfo`) et en remplaçant `GETDATE()` par `GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard Time'` dans le MERGE SQL. j'ai du supprimer une bonne partie de mes données déjà collectées pour corriger les IDTemps car cela aurait créé un mélange de données avec IDTemps en UTC et d'autres en heure Paris afin d'éviter=l'incohérence dans le Data Warehouse.
+> [!IMPORTANT]
+>
+> **Principaux problèmes rencontrés & solutions :**
+>
+> - **Airflow 3 : "Invalid auth token"** — Bug connu ([GitHub #59373](https://github.com/apache/airflow/issues/59373)). Résolu en fixant `AIRFLOW__API_AUTH__JWT_SECRET` dans le docker-compose pour éviter des secrets JWT différents à chaque démarrage.
+> - **NomVille incohérent entre APIs** — OpenWeatherMap renvoie "Paris", AQICN "Paris, Champs-Élysées". Solution : utiliser le nom du fichier config comme source unique de vérité.
+> - **Pannes partielles d'API** — Certaines stations AQICN ne mesurent pas tous les polluants. Correction : ne marquer `FAILED` que si aucune métrique air n'est remplie.
+> - **SQL Server consomme toute la RAM Docker** — Limité via `MSSQL_MEMORY_LIMIT_MB: 1024` + `mem_limit: 2g` dans le docker-compose.
+> - **Décalage horaire IDTemps vs heure locale** — Airflow travaille en UTC même avec `Europe/Paris`. Ajout d'une conversion `to_paris_time()` dans le DAG et adaptation du SQL (`GETDATE() AT TIME ZONE ...`). Suppression des données incohérentes pour garantir l'intégrité.
+> - **Données dupliquées après redémarrage** — Deux runs simultanés peuvent collecter les mêmes données temps réel avec des IDTemps différents. Limite inhérente aux APIs temps réel et à l'infra locale, mais pas de violation de clé.
 
 ## Architecture
 
