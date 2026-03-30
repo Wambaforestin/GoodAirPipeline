@@ -37,7 +37,7 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 > - **Pannes partielles d'API** — Certaines stations AQICN ne mesurent pas tous les polluants. Correction : ne marquer `FAILED` que si aucune métrique air n'est remplie.
 > - **SQL Server consomme toute la RAM Docker** — Limité via `MSSQL_MEMORY_LIMIT_MB: 1024` + `mem_limit: 2g` dans le docker-compose.
 > - **Décalage horaire IDTemps vs heure locale** — Airflow travaille en UTC même avec `Europe/Paris`. Ajout d'une conversion `to_paris_time()` dans le DAG et adaptation du SQL (`GETDATE() AT TIME ZONE ...`). Suppression des données incohérentes pour garantir l'intégrité.
-> - **Données dupliquées après redémarrage** — Deux runs simultanés peuvent collecter les mêmes données temps réel avec des IDTemps différents. Limite inhérente aux APIs temps réel et à l'infra locale, mais pas de violation de clé.
+> - **Données dupliquées après redémarrage** — Deux runs simultanés peuvent collecter les mêmes données temps réel avec des IDTemps différents.Il s'agit d'une liitation liée aux APIs temps réel et à l'infra locale, mais pas de violation de clé.
 
 ## Architecture
 
