@@ -34,6 +34,7 @@ VALUES ('FR', N'France');
 GO
 
 -- Table de référence : Seuils OMS
+
 CREATE TABLE Ref.SeuilsOMS (
     IDSeuil INT IDENTITY(1,1) NOT NULL,
     Polluant VARCHAR(20) NOT NULL,
@@ -42,6 +43,8 @@ CREATE TABLE Ref.SeuilsOMS (
     UniteMesure VARCHAR(20) NOT NULL,
     NiveauDanger NVARCHAR(50) NOT NULL,
     Description NVARCHAR(255) NULL,
+    DateInsertion DATE NOT NULL DEFAULT CAST(GETDATE() AS DATE),
+    DateMiseAJour DATE NOT NULL DEFAULT CAST(GETDATE() AS DATE),
     CONSTRAINT PK_Ref_SeuilsOMS PRIMARY KEY CLUSTERED (IDSeuil)
 );
 GO
