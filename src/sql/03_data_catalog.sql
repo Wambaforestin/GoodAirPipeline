@@ -80,3 +80,12 @@ ALTER TABLE Ref.DataCatalog ADD
     DateInsertion DATE NOT NULL DEFAULT '2026-03-29',
     DateMiseAJour DATE NOT NULL DEFAULT CAST(GETDATE() AS DATE);
 GO
+
+-- Insertion des métadonnées d'audit pour les tables et colonnes existantes
+INSERT INTO Ref.DataCatalog (NomSchema, NomTable, NomColonne, TypeSQL, SourceAPI, CheminJSON, Description, Nullable)
+VALUES
+    ('Ref', 'SeuilsOMS', 'DateInsertion', 'DATE', N'Système', NULL, N'Date d''insertion du seuil dans la table', 0),
+    ('Ref', 'SeuilsOMS', 'DateMiseAJour', 'DATE', N'Système', NULL, N'Date de dernière modification du seuil', 0),
+    ('Ref', 'DataCatalog', 'DateInsertion', 'DATE', N'Système', NULL, N'Date d''insertion de l''entrée dans le catalogue', 0),
+    ('Ref', 'DataCatalog', 'DateMiseAJour', 'DATE', N'Système', NULL, N'Date de dernière modification de l''entrée', 0);
+GO
