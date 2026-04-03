@@ -74,3 +74,9 @@ VALUES
     ('Ref', 'SeuilsOMS', 'NiveauDanger', 'NVARCHAR(50)', 'Référentiel', NULL, N'Classification du seuil (Limite OMS, Danger)', 0),
     ('Ref', 'SeuilsOMS', 'Description', 'NVARCHAR(255)', 'Référentiel', NULL, N'Explication de l''impact sanitaire', 1);
 GO
+
+----- Ajout des colonnes d'audit à Ref.DataCatalog
+ALTER TABLE Ref.DataCatalog ADD
+    DateInsertion DATE NOT NULL DEFAULT '2026-03-29',
+    DateMiseAJour DATE NOT NULL DEFAULT CAST(GETDATE() AS DATE);
+GO
