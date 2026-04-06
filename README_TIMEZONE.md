@@ -1,6 +1,6 @@
-## Fuseau horaire
+# Fuseau horaire
 
-### Choix : Europe/Paris
+## Choix : Europe/Paris
 
 Le pipeline est configuré pour que l'IDTemps (clé temporelle du Data Warehouse) corresponde à l'heure locale française. Quand il est 12h à Paris, l'IDTemps enregistré est `...12`.
 
@@ -9,12 +9,14 @@ Ce choix est cohérent avec le contexte métier : les villes surveillées sont f
 **Implémentation (2 niveaux) :**
 
 1. **Docker-compose** — l'interface Airflow et le scheduling affichent l'heure Paris :
+
    ```yaml
    AIRFLOW__CORE__DEFAULT_TIMEZONE: 'Europe/Paris'
    AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: 'Europe/Paris'
    ```
 
 2. **Code Python** — le `logical_date` d'Airflow est toujours en UTC en interne, même avec le timezone Paris configuré. Une fonction `to_paris_time()` dans `connections.py` convertit le datetime UTC en heure Paris avant de générer l'IDTemps :
+
    ```python
    from zoneinfo import ZoneInfo
    PARIS_TZ = ZoneInfo("Europe/Paris")
@@ -22,6 +24,7 @@ Ce choix est cohérent avec le contexte métier : les villes surveillées sont f
    def to_paris_time(dt):
        return dt.astimezone(PARIS_TZ)
    ```
+
    Cette conversion est appelée une seule fois dans le DAG, au point d'entrée de chaque task. Toutes les fonctions en aval reçoivent directement l'heure Paris.
 
 ### Alternative non retenue : UTC avec affichage Paris
@@ -39,12 +42,14 @@ Le DST (Daylight Saving Time) est le passage heure d'été ↔ heure d'hiver. En
 **Actions à effectuer lors d'un changement d'heure :**
 
 1. Vérifier le lendemain que le pipeline a bien tourné pendant la nuit :
+
    ```sql
    SELECT IDTemps, COUNT(*) AS NbVilles
    FROM Gold.FactMesures
    WHERE IDTemps LIKE '20261025%'
    ORDER BY IDTemps;
    ```
+
 2. Si un créneau est manquant (trou) : c'est attendu, pas d'action nécessaire.
 3. Si un run a échoué sur un conflit de clé : le retry Airflow le résout via le MERGE (UPSERT).
 
