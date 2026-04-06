@@ -2,11 +2,12 @@
   {"city": "Paris", "country": "FR"},
   {"city": "Lyon", "country": "FR"},
   {"city": "Lille", "country": "FR"},
-  {"city": "Marseille", "country": "FR"},
   {"city": "Bordeaux", "country": "FR"},
+  {"city": "Marseille", "country": "FR"},
   {"city": "Toulouse", "country": "FR"},
   {"city": "Nantes", "country": "FR"},
   {"city": "Strasbourg", "country": "FR"},
   {"city": "Nice", "country": "FR"},
-  {"city": "Rennes", "country": "FR"}
+  {"city": "Rennes", "country": "FR"},
+  {"city": "Franconville", "country": "FR"}
 ]
