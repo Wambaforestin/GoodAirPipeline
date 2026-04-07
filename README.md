@@ -211,6 +211,8 @@ docker compose build --no-cache
 - [ ] Migration du pilotage par config JSON vers table SQL `Ref.VillesCibles`
 - [ ] Optimisation Polars si volumes > 1M lignes
 
-## Équipe
+## Documentation complémentaire
 
-Projet MSPR — EPSI (Bloc 3 RNCP36921)
+- [Data Catalog](docs/DATA_CATALOG.md) — documentation des tables et colonnes.
+- [Principes de développement](docs/PRINCIPE_DE_DEVELOPPEMENT_PIPELINE.md) — principes d'ingénierie appliqués au pipeline.
+- [Comment le changement du fuseau horaire à été géré](docs/CHANGEMENT_FUSEAU_HORAIRE.md) — explication détaillée du choix et de l'implémentation du fuseau horaire.
