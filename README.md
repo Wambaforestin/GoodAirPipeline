@@ -216,3 +216,4 @@ docker compose build --no-cache
 - [Data Catalog](docs/DATA_CATALOG.md) — documentation des tables et colonnes.
 - [Principes de développement](docs/PRINCIPE_DE_DEVELOPPEMENT_PIPELINE.md) — principes d'ingénierie appliqués au pipeline.
 - [Comment le changement du fuseau horaire à été géré](docs/CHANGEMENT_FUSEAU_HORAIRE.md) — explication détaillée du choix et de l'implémentation du fuseau horaire.
+- [Qualité des données](docs/QUALITE_DONNEES.md) — vérifications DQ appliquées à chaque étape du pipeline
