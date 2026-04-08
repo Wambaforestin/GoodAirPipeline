@@ -1,4 +1,4 @@
-# Vérifications de Qualité des Données — GoodAir Pipeline
+# Vérifications de Qualité des Données: GoodAir Pipeline
 
 Ce document décrit comment la qualité des données est assurée à chaque étape du pipeline. Chaque vérification est justifiée par un enjeu métier concret et illustrée avec le code qui l'implémente.
 

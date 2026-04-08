@@ -60,6 +60,7 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 ```text
 GoodAirPipeline/
 ├── dags/                  # DAGs Airflow
+├── docs/                 # Documentation (Data Catalog, principes de dev, etc.)
 ├── src/
 │   ├── extract/           # Appels API → Bronze (JSON brut dans MinIO)
 │   ├── transform/         # Nettoyage & DQ → Silver (Parquet dans MinIO)
