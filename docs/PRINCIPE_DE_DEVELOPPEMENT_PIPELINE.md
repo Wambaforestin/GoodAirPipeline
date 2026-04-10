@@ -27,13 +27,13 @@ assert all(col in df.columns for col in expected_cols), \
     f"Colonnes manquantes. Attendu: {expected_cols}, Reçu: {list(df.columns)}"
 ```
 
-**Ce qu'on ne fait pas :** des blocs `try/except Exception: pass` qui avalent les erreurs silencieusement. C'est strictement interdit dans nos specs. Le seul `try/except` autorisé est pour des erreurs d'infrastructure connues (timeout réseau, bucket MinIO déjà existant), jamais pour des erreurs de données.
+**Ce qu'on ne fait pas :** des blocs `try/except Exception: pass` qui avalent les erreurs silencieusement. C'est strictement interdit dans nos sécifications (sur notion). Le seul `try/except` autorisé est pour des erreurs d'infrastructure connues (timeout réseau, bucket MinIO déjà existant), jamais pour des erreurs de données.
 
 ---
 
 ## 2. Design for Failure (Concevez en fonction du pire scénario)
 
-**Principe :** partir du postulat que tout va casser — les APIs, le réseau, la base, le disque. Le système doit y survivre.
+**Principe :** supposer que quelque chose va échouer (APIs, réseau, base de données, disque). Le système doit continuer à fonctionner malgré tout.
 
 **Comment on l'applique :**
 
@@ -53,7 +53,7 @@ La fusion des deux sources utilise un outer join pour ne jamais perdre de donné
 df_merged = pd.merge(df_meteo, df_air, on=["NomVille", "IDTemps"], how="outer")
 ```
 
-Et si une API ne renvoie pas toutes ses colonnes (ex: Lyon n'a pas PM2.5), on les crée à NULL plutôt que de crasher :
+Et si une API ne renvoie pas toutes ses colonnes (ex: Lyon n'a pas PM2.5 et O3), on les crée à NULL plutôt que de crasher :
 
 ```python
 # transform_silver.py
