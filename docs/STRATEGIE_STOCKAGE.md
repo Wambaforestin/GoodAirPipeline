@@ -14,6 +14,10 @@ MinIO
 └── silver/          → Données nettoyées (Parquet)
 ```
 
+### Note : Architecture par zones vs Architecture Médaillon
+
+L'architecture Médaillon (Bronze / Silver / Gold) popularisée par Databricks n'est qu'une version spécifique et standardisée de l'architecture par zones. Le concept de base est le même : segmenter les données par niveau de qualité et de transformation. Dans notre projet, Bronze et Silver sont dans MinIO (Data Lake), Gold est dans SQL Server (Data Warehouse). Les termes changent selon les entreprises (Raw/Cleaned/Curated, Landing/Staging/Production), mais le principe reste identique : les données gagnent en qualité et en structure à chaque zone.
+
 ### Zone Bronze (bucket `bronze`)
 
 **Rôle :** figer l'histoire. Les réponses API sont stockées telles quelles, sans aucune transformation. C'est la source de vérité absolue du Data Lake.
