@@ -214,6 +214,7 @@ docker compose build --no-cache
 
 ## Documentation complémentaire
 
+- [Stratégie de stockage dans le data lake MinIO](docs/STRATEGIE_STOCKAGE.md) — organisation, partitionnement, et sécurité des données dans MinIO.
 - [Data Catalog](docs/DATA_CATALOG.md) — documentation des tables et colonnes.
 - [Principes de développement](docs/PRINCIPE_DE_DEVELOPPEMENT_PIPELINE.md) — principes d'ingénierie appliqués au pipeline.
 - [Comment le changement du fuseau horaire à été géré](docs/CHANGEMENT_FUSEAU_HORAIRE.md) — explication détaillée du choix et de l'implémentation du fuseau horaire.
