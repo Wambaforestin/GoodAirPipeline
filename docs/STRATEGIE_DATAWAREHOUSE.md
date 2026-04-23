@@ -269,6 +269,8 @@ WHEN NOT MATCHED THEN INSERT (...) VALUES (...);
 
 ## Intégrité des données
 
+L'intégrité est assurée à deux niveaux : par le code Python (vérifications avant insertion) et par SQL Server (contraintes qui rejettent les données invalides même si Python a un bug). C'est le principe de défense en profondeur.
+
 ### Clé primaire composite
 
 ```sql
@@ -297,6 +299,200 @@ CHECK (Heure BETWEEN 0 AND 23)
 ```
 
 Protection contre les valeurs physiquement impossibles. Même si le code Python a un bug, SQL Server refuse les données invalides.
+
+### Typage strict des colonnes
+
+Chaque colonne a un type précis qui empêche les données incohérentes :
+
+| Colonne     | Type          | Ce que ça empêche                                                   |
+| ----------- | ------------- | ------------------------------------------------------------------- |
+| Temperature | DECIMAL(5,2)  | Pas de chaînes de caractères, précision à 2 décimales               |
+| CodePays    | CHAR(2)       | Exactement 2 caractères, pas "France" ni "F"                        |
+| IDTemps     | BIGINT        | Pas de dates au format texte                                        |
+| NomVille    | NVARCHAR(100) | Supporte les caractères spéciaux (accents), limité à 100 caractères |
+
+---
+
+## Consistance des données
+
+La consistance garantit que les données restent cohérentes entre elles à tout moment, même en cas de panne ou de relance du pipeline.
+
+### Consistance entre les couches (Bronze → Silver → Gold)
+
+Le pipeline suit un flux unidirectionnel strict : Bronze → Silver → Gold. Chaque couche ne lit que la couche précédente, jamais l'inverse. Il n'y a pas de mise à jour de Bronze depuis Silver, ni de retour de Gold vers Staging.
+
+```
+Bronze (JSON brut) → Silver (Parquet nettoyé) → Staging (tables temp) → Gold (star schema)
+         ↓                    ↓                       ↓                      ↓
+     Overwrite            Overwrite               TRUNCATE               MERGE
+```
+
+À chaque couche, la stratégie d'écriture garantit qu'on ne mélange pas les données de runs différents.
+
+### Consistance entre dimensions et faits
+
+L'ordre d'exécution du MERGE est critique. Les dimensions sont **toujours** alimentées avant les faits :
+
+```
+1. INSERT DimLieux (si nouvelles villes)
+2. INSERT DimTemps (si nouvelle heure)
+3. MERGE FactMesures (les FK sont satisfaites)
+```
+
+Si l'étape 1 échoue, les étapes 2 et 3 ne s'exécutent pas. Si l'étape 3 échoue, les dimensions sont déjà à jour mais aucun fait corrompu n'est inséré. Les 3 opérations sont dans un seul `conn.commit()` — si une échoue, tout est annulé (rollback transactionnel).
+
+```python
+# load_gold.py — une seule transaction pour les 3 opérations
+with engine.connect() as conn:
+    conn.execute(sql_dim_lieux)
+    conn.execute(sql_dim_temps)
+    conn.execute(sql_merge_facts, {"batch_id": batch_id})
+    conn.commit()  # Tout ou rien
+```
+
+### Consistance temporelle
+
+Le Time Bucketing garantit que toutes les données d'un même run portent le même IDTemps. On ne dépend pas de l'horloge des serveurs API (qui peuvent différer de quelques minutes). L'heure vient d'Airflow (`logical_date`), convertie en heure Paris, et appliquée uniformément à toutes les villes du batch.
+
+```python
+# Même IDTemps pour Paris, Lyon, Lille... dans le même run
+run_hour = int(run_date.strftime("%Y%m%d%H"))  # Ex: 2026033015
+```
+
+### Consistance entre les sources (météo et air)
+
+La fusion des deux sources se fait sur `(NomVille, IDTemps)`. Le NomVille vient du fichier config (pas des APIs) pour garantir la correspondance. Sans cette règle, OpenWeatherMap pourrait renvoyer "Paris" et AQICN "Paris, Île-de-France" — deux lignes séparées au lieu d'une fusionnée.
+
+---
+
+## Audit et traçabilité
+
+L'audit répond à trois questions : **qui** a modifié la donnée, **quand**, et **pourquoi**.
+
+### Les colonnes d'audit sur FactMesures
+
+Chaque ligne de la table de faits porte 5 colonnes d'audit :
+
+```sql
+MeteoStatus VARCHAR(20)      -- La source météo a-t-elle répondu ?
+AirStatus VARCHAR(20)        -- La source air a-t-elle répondu ?
+DateInsertion DATETIME2      -- Quand cette ligne a été créée pour la première fois
+DateModification DATETIME2   -- Quand cette ligne a été modifiée pour la dernière fois
+IDBatch VARCHAR(100)         -- Quel run Airflow a produit/modifié cette ligne
+```
+
+### Traçabilité des sources (MeteoStatus / AirStatus)
+
+Ces colonnes répondent à la question : "pourquoi cette donnée est-elle incomplète ?".
+
+```sql
+-- Trouver toutes les lignes où l'API météo n'a pas répondu
+SELECT l.NomVille, t.DateHeure, f.MeteoStatus, f.AirStatus
+FROM Gold.FactMesures f
+INNER JOIN Gold.DimLieux l ON f.IDLieu = l.IDLieu
+INNER JOIN Gold.DimTemps t ON f.IDTemps = t.IDTemps
+WHERE f.MeteoStatus = 'FAILED' OR f.AirStatus = 'FAILED';
+```
+
+Un chercheur qui voit `Temperature = NULL` peut immédiatement comprendre pourquoi en regardant `MeteoStatus`. Ce n'est pas un problème de capteur, c'est l'API qui n'a pas répondu.
+
+### Traçabilité temporelle (DateInsertion / DateModification)
+
+```sql
+-- Voir les lignes modifiées après leur insertion (relancées ou mises à jour)
+SELECT l.NomVille, t.DateHeure, f.DateInsertion, f.DateModification
+FROM Gold.FactMesures f
+INNER JOIN Gold.DimLieux l ON f.IDLieu = l.IDLieu
+INNER JOIN Gold.DimTemps t ON f.IDTemps = t.IDTemps
+WHERE f.DateInsertion <> f.DateModification;
+```
+
+Si `DateInsertion ≠ DateModification`, la ligne a été mise à jour par un run ultérieur. C'est normal (idempotence) mais traçable.
+
+Les dates utilisent `GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard Time'` pour être cohérentes avec l'IDTemps en heure Paris.
+
+### Traçabilité des batches (IDBatch)
+
+L'IDBatch correspond au `run_id` d'Airflow. Il encode le type de run et l'heure :
+
+```
+scheduled__2026-03-30T14:00:00+00:00   → run automatique horaire
+manual__2026-03-30T15:26:52+00:00      → run déclenché manuellement
+```
+
+C'est la colonne la plus puissante pour l'audit. Elle permet :
+
+**1. Identifier les données d'un run spécifique :**
+
+```sql
+SELECT * FROM Gold.FactMesures
+WHERE IDBatch = 'scheduled__2026-03-30T14:00:00+00:00';
+```
+
+**2. Rollback chirurgical si un run a corrompu des données :**
+
+```sql
+DELETE FROM Gold.FactMesures
+WHERE IDBatch = 'scheduled__2026-03-30T14:00:00+00:00';
+```
+
+**3. Distinguer les runs manuels des runs schedulés :**
+
+```sql
+SELECT
+    CASE WHEN IDBatch LIKE 'manual%' THEN 'Manuel' ELSE 'Schedulé' END AS TypeRun,
+    COUNT(*) AS NbLignes
+FROM Gold.FactMesures
+GROUP BY CASE WHEN IDBatch LIKE 'manual%' THEN 'Manuel' ELSE 'Schedulé' END;
+```
+
+**4. Vérifier la fraîcheur des données :**
+
+```sql
+-- Dernier batch exécuté
+SELECT TOP 1 IDBatch, DateModification
+FROM Gold.FactMesures
+ORDER BY DateModification DESC;
+```
+
+### Audit de la structure (Data Catalog)
+
+La table `Ref.DataCatalog` documente chaque colonne du DW : son type, sa source API, son chemin JSON d'origine, et sa description. C'est un audit de la structure, pas des données.
+
+```sql
+-- Voir toutes les colonnes alimentées par AQICN
+SELECT NomTable, NomColonne, CheminJSON, Description
+FROM Ref.DataCatalog
+WHERE SourceAPI = 'AQICN';
+```
+
+### Audit des rejets
+
+Les lignes rejetées par le pipeline (lignes mortes, clés manquantes) ne sont pas supprimées. Elles sont archivées dans `silver/rejects/` dans MinIO. Un Data Engineer peut les analyser pour comprendre pourquoi des données ont été écartées :
+
+```python
+# Les rejets sont sauvegardés, pas supprimés
+if not df_rejects.empty:
+    reject_partition = get_partition_path("rejects", run_date)
+    save_to_silver(minio_client, silver_bucket, df_rejects, reject_partition, "rejects.parquet")
+```
+
+### Diagnostic et monitoring
+
+Le script `06_diagnostic_admin.sql` fournit des requêtes prêtes à l'emploi pour auditer l'état du Data Warehouse :
+
+- Taille des tables et de la base
+- Taux de disponibilité par ville
+- Créneaux horaires manquants (trous dans les données)
+- Pannes par source API
+- État des tables staging (devraient être vides entre les runs)
+- Permissions et rôles des utilisateurs
+
+### Ce qui est prévu en V2
+
+- **Alertes automatiques** : notification Slack/Email quand un pattern d'anomalie est détecté (PM2.5 NULL pour Paris pendant 3h consécutives)
+- **Table Logs.PipelineRuns** : historiser chaque exécution du pipeline avec le nombre de lignes insérées, mises à jour, et rejetées
+- **Tableau de bord de pilotage** : connecter Power BI aux colonnes d'audit pour visualiser la fraîcheur et la complétude des données en temps réel
 
 ---
 
@@ -389,16 +585,21 @@ La migration consisterait à exporter les tables Gold et recréer les mêmes sch
 
 ## Résumé des décisions
 
-| Décision                  | Choix                            | Justification                                                 |
-| ------------------------- | -------------------------------- | ------------------------------------------------------------- |
-| Modèle                    | Star schema (Kimball)            | Optimisé pour les requêtes BI, simple pour les chercheurs     |
-| Nombre de tables de faits | 1 (FactMesures)                  | Même grain météo/air, évite les jointures inutiles            |
-| Grain                     | 1 ville × 1 heure                | Correspond au rythme du pipeline et à la granularité des APIs |
-| Clé technique             | IDENTITY INT                     | Jointures rapides, indépendant des données source             |
-| Clé temporelle            | BIGINT YYYYMMDDHH                | Lisible, déterministe, performant                             |
-| Schémas                   | Gold, Ref, Staging               | Séparation par fonction et cycle de vie                       |
-| Staging                   | Tables sans index ni contraintes | Zone tampon jetable, protège Gold                             |
-| Chargement                | MERGE (UPSERT)                   | Idempotent, atomique, préserve DateInsertion                  |
-| Index                     | Clustered sur PK uniquement      | Suffisant pour le volume MVP                                  |
-| Sécurité                  | Rôles par schéma                 | Simple, héritable, conforme aux specs                         |
-| Cascade                   | Non                              | Protection contre les suppressions accidentelles              |
+| Décision                  | Choix                               | Justification                                                 |
+| ------------------------- | ----------------------------------- | ------------------------------------------------------------- |
+| Modèle                    | Star schema (Kimball)               | Optimisé pour les requêtes BI, simple pour les chercheurs     |
+| Nombre de tables de faits | 1 (FactMesures)                     | Même grain météo/air, évite les jointures inutiles            |
+| Grain                     | 1 ville × 1 heure                   | Correspond au rythme du pipeline et à la granularité des APIs |
+| Clé technique             | IDENTITY INT                        | Jointures rapides, indépendant des données source             |
+| Clé temporelle            | BIGINT YYYYMMDDHH                   | Lisible, déterministe, performant                             |
+| Schémas                   | Gold, Ref, Staging                  | Séparation par fonction et cycle de vie                       |
+| Staging                   | Tables sans index ni contraintes    | Zone tampon jetable, protège Gold                             |
+| Chargement                | MERGE (UPSERT)                      | Idempotent, atomique, préserve DateInsertion                  |
+| Transaction               | Commit unique pour les 3 opérations | Tout ou rien, pas d'état intermédiaire corrompu               |
+| Consistance temporelle    | Time Bucketing via logical_date     | Même IDTemps pour toutes les villes d'un run                  |
+| Consistance NomVille      | Source = config, pas API            | Garantit la fusion météo/air                                  |
+| Index                     | Clustered sur PK uniquement         | Suffisant pour le volume MVP                                  |
+| Sécurité                  | Rôles par schéma                    | Simple, héritable, conforme aux specs                         |
+| Cascade                   | Non                                 | Protection contre les suppressions accidentelles              |
+| Audit                     | 5 colonnes sur FactMesures          | Traçabilité complète (source, date, batch)                    |
+| Rejets                    | Archivés dans silver/rejects/       | Analyse post-mortem possible                                  |
