@@ -15,6 +15,11 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 3. **Load** — insère dans des tables staging SQL Server, puis exécute un MERGE (UPSERT) vers le Data Warehouse final
 4. **Orchestration** — Apache Airflow 3 déclenche le tout automatiquement, gère les retries, et logge chaque exécution
 
+## Sources de données
+
+Les données relatives à la qualité de [l’air](https://aqicn.org/json-api/doc/)
+Les données [météorologiques](https://openweathermap.org/api)
+
 ## Pourquoi ces choix techniques
 
 | Choix              | Pourquoi                                                                                                                                  | Alternative envisagée                              |
@@ -224,11 +229,13 @@ docker compose build --no-cache
 
 - [ ] Rôles et permissions SQL Server (Role_Chercheur, Role_Directeur, Role_RSSI)
 - [ ] Alertes Slack/Email en cas d'échec du pipeline
+- [ ] Ajout des modèles de machine learning pour prédiction sur des cas d'usage spécifiques (ex: prédiction de pics de pollution)
 - [ ] Création d'utilisateurs Airflow avec rôles distincts
 - [ ] Tests unitaires (Pytest)
-- [ ] Connexion Power BI / Tableau au Data Warehouse
+- [ ] Connexion Power BI / Tableau / Metabase au Data Warehouse
 - [ ] Migration du pilotage par config JSON vers table SQL `Ref.VillesCibles`
 - [ ] Optimisation Polars si volumes > 1M lignes
+- [ ] Intégration continue (GitHub Actions) pour tests et déploiement
 
 ## Documentation complémentaire
 
