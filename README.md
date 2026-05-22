@@ -41,7 +41,7 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 
 ## Architecture
 
-![Architecture MVP Good Air](images/ArchirectureMVPGoodAir.png)
+![Architecture MVP Good Air](images/ArchirectureMVPGoodAirV2.png.png)
 
 ## Schéma en étoile
 
@@ -54,6 +54,24 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 ## Architecture d'Airflow 3
 
 ![Architecture d'airflow](images/ArchitectureAiflow.png)
+
+## interface DAG Airflow
+
+![DAG Airflow](images/resultats_projet/ui_airflow_dag.png)
+
+## Interface des données brutes dans MinIO
+
+![MinIO Browser](images/resultats_projet/datalake.png)
+
+## Interface SQL Server Management Studio avec les tables DimLieux, DimTemps, FactMesures
+
+![SQL Server Management Studio](images/resultats_projet/bd.png)
+
+## Logs et métriques d'exécution Airflow
+
+![Airflow Logs](images/resultats_projet/logs_airflow.png)
+
+![Métriques d'exécution Airflow aujourd'hui](images/resultats_projet/MetricsAirflow.png)
 
 ## Structure du Projet
 
@@ -79,7 +97,7 @@ GoodAirPipeline/
 └── README.md
 ```
 
-## Quickstart
+## L'installation et le lancement du pipeline sur votre machine
 
 ```bash
 # 1. Cloner et configurer
@@ -99,11 +117,11 @@ docker compose ps    # Tout doit être "healthy"
 
 ## Accès aux services
 
-| Service           | URL                   | Identifiants     |
-| ----------------- | --------------------- | ---------------- |
-| Airflow           | http://localhost:8081 | (voir .env)      |
-| MinIO Console     | http://localhost:9001 | (voir .env)      |
-| SQL Server (SSMS) | localhost,1433        | sa / (voir .env) |
+| Service           | URL                   | Identifiants             |
+| ----------------- | --------------------- | ------------------------ |
+| Airflow           | http://localhost:8081 | (voir .env.example)      |
+| MinIO Console     | http://localhost:9001 | (voir .env.example)      |
+| SQL Server (SSMS) | localhost,1433        | sa / (voir .env.example) |
 
 ## Fuseau horaire
 
