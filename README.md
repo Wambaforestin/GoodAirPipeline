@@ -41,7 +41,7 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 
 ## Architecture
 
-![Architecture MVP Good Air](images/ArchirectureMVPGoodAirV2.png.png)
+![Architecture MVP Good Air](images/ArchirectureMVPGoodAirV2.png)
 
 ## Schéma en étoile
 
@@ -55,13 +55,13 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 
 ![Architecture d'airflow](images/ArchitectureAiflow.png)
 
-## interface DAG Airflow
+## Interface DAG Airflow
 
 ![DAG Airflow](images/resultats_projet/ui_airflow_dag.png)
 
 ## Interface des données brutes dans MinIO
 
-![MinIO Browser](images/resultats_projet/datalake.png)
+![MinIO Browser](images/resultats_projet/datalae.png)
 
 ## Interface SQL Server Management Studio avec les tables DimLieux, DimTemps, FactMesures
 
