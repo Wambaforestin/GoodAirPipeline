@@ -17,29 +17,30 @@ def extract_openweathermap(city, country, api_key):
     """Appelle l'API OpenWeatherMap pour une ville donnée."""
     url = "https://api.openweathermap.org/data/2.5/weather"
     params = {"q": f"{city},{country}", "appid": api_key, "units": "metric"}
-    response = requests.get(url, params=params, timeout=30)
+    response = requests.get(url, params=params, timeout=30) # Timeout de 30 secondes pour éviter les blocages prolongés
 
-    if response.status_code == 404:
+    data = response.json()
+    if response.status_code == 404: # ici, si la ville n'est pas trouvée, OpenWeatherMap retourne un 404
         logger.warning(f"OpenWeatherMap - Ville introuvable : {city},{country}")
         return None
 
-    response.raise_for_status()
-    return response.json()
+    response.raise_for_status() # pour les autres erreurs HTTP (ex: 401, 500, etc.)
+    return data # retourne le JSON de la réponse, qui contient les données météo pour la ville donnée
 
 
 def extract_aqicn(city, api_key):
     """Appelle l'API AQICN pour une ville donnée."""
     url = f"https://api.waqi.info/feed/{city}/"
     params = {"token": api_key}
-    response = requests.get(url, params=params, timeout=30)
+    response = requests.get(url, params=params, timeout=30) # Timeout de 30 secondes pour éviter les blocages prolongés
     response.raise_for_status()
 
     data = response.json()
-    if data.get("status") != "ok":
+    if data.get("status") != "ok": # AQICN retourne un champ "status" qui indique si la requête a réussi ou non
         logger.warning(f"AQICN - Réponse non-ok pour {city} : {data.get('status')}")
         return None
 
-    return data
+    return data # retourne le JSON de la réponse, qui contient les données de qualité de l'air pour la ville donnée
 
 
 def save_to_bronze(minio_client, bucket, data, partition_path, filename):
@@ -63,7 +64,7 @@ def save_to_bronze(minio_client, bucket, data, partition_path, filename):
     )
     logger.info(f"Bronze sauvegardé : {bucket}/{object_path}")
 
-
+# Point d'entrée de l'extraction, appelé par le DAG Airflow
 def run_extract(run_date):
     """Point d'entrée de l'extraction. Appelé par le DAG Airflow."""
     cities = load_cities_config()
@@ -79,7 +80,7 @@ def run_extract(run_date):
         logger.info(f"Extraction pour {city}, {country}...")
 
         # OpenWeatherMap
-        owm_data = extract_openweathermap(city, country, owm_key)
+        owm_data = extract_openweathermap(city, country, owm_key) # ici, je fais appel à la fonction d'extraction pour OpenWeatherMap, qui retourne les données météo pour la ville donnée
         if owm_data:
             partition = get_partition_path("openweathermap", run_date)
             save_to_bronze(
@@ -87,7 +88,7 @@ def run_extract(run_date):
             )
 
         # AQICN
-        aqicn_data = extract_aqicn(city, aqicn_key)
+        aqicn_data = extract_aqicn(city, aqicn_key) # ici, je fais appel à la fonction d'extraction pour AQICN, qui retourne les données de qualité de l'air pour la ville donnée
         if aqicn_data:
             partition = get_partition_path("aqicn", run_date)
             save_to_bronze(
