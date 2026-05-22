@@ -61,7 +61,7 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 4 étapes :
 
 ## Interface des données brutes dans MinIO
 
-![MinIO Browser](images/resultats_projet/datalae.png)
+![MinIO Browser](images/resultats_projet/datalake.png)
 
 ## Interface SQL Server Management Studio avec les tables DimLieux, DimTemps, FactMesures
 
