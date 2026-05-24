@@ -241,7 +241,7 @@ docker compose build --no-cache
 - [ ] Optimisation Polars si volumes > 1M lignes
 - [ ] Intégration continue (GitHub Actions) pour tests et déploiement
 
-## Documentation complémentaire
+## Documentation complémentaire et liens utiles
 
 - [Stratégie de stockage dans le data lake MinIO](docs/STRATEGIE_STOCKAGE.md) — organisation, partitionnement, et sécurité des données dans MinIO.
 - [Stratégie Data Warehouse](docs/STRATEGIE_DATAWAREHOUSE.md) — modélisation, schémas, MERGE et sécurité SQL Server
@@ -249,3 +249,4 @@ docker compose build --no-cache
 - [Principes de développement](docs/PRINCIPE_DE_DEVELOPPEMENT_PIPELINE.md) — principes d'ingénierie appliqués au pipeline.
 - [Comment le changement du fuseau horaire à été géré](docs/CHANGEMENT_FUSEAU_HORAIRE.md) — explication détaillée du choix et de l'implémentation du fuseau horaire.
 - [Qualité des données](docs/QUALITE_DONNEES.md) — vérifications DQ appliquées à chaque étape du pipeline
+- [les images des résultats du projet](images/resultats_projet/) — captures d'écran de l'interface Airflow, MinIO, SQL Server, etc.
