@@ -78,6 +78,10 @@ Les données [météorologiques](https://openweathermap.org/api)
 
 ![Métriques d'exécution Airflow aujourd'hui](images/resultats_projet/MetricsAirflow.png)
 
+## Retry automatique en cas d'échec
+
+![Retry Airflow](images/resultats_projet/retry_success.png)
+
 ## Structure du Projet
 
 ```text
