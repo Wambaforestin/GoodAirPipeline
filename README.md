@@ -72,6 +72,10 @@ Les données [météorologiques](https://openweathermap.org/api)
 
 ![SQL Server Management Studio](images/resultats_projet/bd.png)
 
+## Connexion avec le proffil `UsrChercheur` (permissions en lecture seule)
+
+![Connexion SQL Server UsrChercheur](images/resultats_projet/connexion_chercheur.png)
+
 ## Logs et métriques d'exécution Airflow
 
 ![Airflow Logs](images/resultats_projet/logs_airflow.png)

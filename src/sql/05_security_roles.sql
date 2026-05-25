@@ -30,23 +30,31 @@ GO
 CREATE LOGIN UsrChercheur
     WITH PASSWORD = 'Chercheur2026!' MUST_CHANGE,
     CHECK_POLICY = ON,
-    CHECK_EXPIRATION = OFF,
+    CHECK_EXPIRATION = ON,
     DEFAULT_DATABASE = GoodAirDW;
 GO
 
 CREATE LOGIN UsrDirecteur
     WITH PASSWORD = 'DirDash2026$' MUST_CHANGE,
     CHECK_POLICY = ON,
-    CHECK_EXPIRATION = OFF,
+    CHECK_EXPIRATION = ON,
     DEFAULT_DATABASE = GoodAirDW;
 GO
 
 CREATE LOGIN UsrRSSI
     WITH PASSWORD = 'Securite2026*' MUST_CHANGE,
     CHECK_POLICY = ON,
-    CHECK_EXPIRATION = OFF,
+    CHECK_EXPIRATION = ON,
     DEFAULT_DATABASE = GoodAirDW;
 GO
+
+-- CHECK_EXPIRATION = ON signifie que les mots de passe expirent après 42 jours (politique Windows par défaut).
+-- Pour déactiver l'expiration, il faudrait mettre CHECK_EXPIRATION = OFF, mais cela n'est pas recommandé pour des raisons de sécurité.
+-- Cependant, pour les besoins de ce projet et éviter les blocages liés à l'expiration
+
+ALTER LOGIN UsrChercheur WITH CHECK_EXPIRATION = OFF;
+ALTER LOGIN UsrDirecteur WITH CHECK_EXPIRATION = OFF;
+ALTER LOGIN UsrRSSI WITH CHECK_EXPIRATION = OFF;
 
 -- Le RSSI gère les accès via securityadmin
 ALTER SERVER ROLE securityadmin ADD MEMBER UsrRSSI;
