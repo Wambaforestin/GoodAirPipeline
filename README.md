@@ -183,11 +183,19 @@ SELECT * FROM Gold.FactMesures WHERE IDBatch LIKE 'scheduled%';
 -- Nombre de lignes dans FactMesures
 SELECT COUNT(*) AS NbLignes FROM Gold.FactMesures;
 
--- Nombre de villes par créneau horaire
-SELECT IDTemps, COUNT(*) AS NbVilles
-FROM Gold.FactMesures
-GROUP BY IDTemps
-ORDER BY IDTemps;
+-- Les dernières mesures (dernier créneau)
+SELECT TOP 11 
+    f.IDTemps AS [Créneau],
+    l.NomVille AS [Ville],
+    f.Temperature AS [Temp (°C)],
+    f.Humidite AS [Humidité (%)],
+    f.AqiGlobal AS [AQI],
+    f.MeteoStatus AS [Statut Météo],
+    f.AirStatus AS [Statut Air],
+    f.DateInsertion AS [Date d''insertion]
+FROM Gold.FactMesures f
+INNER JOIN Gold.DimLieux l ON f.IDLieu = l.IDLieu
+ORDER BY f.IDTemps DESC;
 ```
 
 ## Stack technique
