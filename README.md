@@ -72,7 +72,7 @@ Les données [météorologiques](https://openweathermap.org/api)
 
 ![SQL Server Management Studio](images/resultats_projet/bd.png)
 
-## Connexion avec le proffil `UsrChercheur` (permissions en lecture seule)
+## Connexion avec le profil `UsrChercheur` (permissions en lecture seule)
 
 ![Connexion SQL Server UsrChercheur](images/resultats_projet/connexion_chercheur.png)
 
