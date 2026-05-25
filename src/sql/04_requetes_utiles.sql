@@ -6,21 +6,123 @@ SELECT * FROM Gold.DimLieux;
 SELECT * FROM Gold.DimTemps;
 SELECT * FROM Gold.FactMesures;
 
--- Nombre total de lignes dans FactMesures
-SELECT COUNT(*) AS NbLignes FROM Gold.FactMesures;
-
--- Nombre de villes par créneau horaire
-SELECT IDTemps, COUNT(*) AS NbVilles
-FROM Gold.FactMesures
-GROUP BY IDTemps
-ORDER BY IDTemps;
-
--- Runs manuels vs schedulés
+-- Runs manuels vs schedulés (exemples de lignes)
 SELECT * FROM Gold.FactMesures WHERE IDBatch LIKE 'manual%';
 SELECT * FROM Gold.FactMesures WHERE IDBatch LIKE 'scheduled%';
 
--- Dernières données insérées
-SELECT TOP 10 f.IDTemps, l.NomVille, f.Temperature, f.AqiGlobal, f.MeteoStatus, f.AirStatus, f.DateInsertion
+-- Seuils OMS de référence
+SELECT * FROM Ref.SeuilsOMS;
+
+-- Pays de référence
+SELECT * FROM Ref.Pays;
+
+-- Data Catalog : toutes les colonnes du DW
+SELECT * FROM Ref.DataCatalog ORDER BY NomSchema, NomTable, IDCatalog;
+
+-- Data Catalog : colonnes d'une table spécifique
+SELECT NomColonne, TypeSQL, SourceAPI, CheminJSON, Description
+FROM Ref.DataCatalog
+WHERE NomTable = 'FactMesures'
+ORDER BY IDCatalog;
+
+-- Data Catalog : provenance par API
+SELECT NomTable, NomColonne, CheminJSON, Description
+FROM Ref.DataCatalog
+WHERE SourceAPI = 'AQICN';
+
+SELECT NomTable, NomColonne, CheminJSON, Description
+FROM Ref.DataCatalog
+WHERE SourceAPI = 'OpenWeatherMap';
+
+-- Nombre total de mesures collectées
+SELECT COUNT(*) AS [Nombre total de mesures] FROM Gold.FactMesures;
+
+-- Nombre de créneaux horaires couverts
+SELECT COUNT(DISTINCT IDTemps) AS [Nombre de créneaux horaires] FROM Gold.FactMesures;
+
+-- Nombre de villes suivies
+SELECT COUNT(*) AS [Nombre de villes suivies] FROM Gold.DimLieux;
+
+-- Nombre de runs schedulés vs manuels (comptage d'exécutions)
+SELECT 
+    CASE WHEN IDBatch LIKE 'scheduled%' THEN N'Schedulé' ELSE N'Manuel' END AS [Type de run],
+    COUNT(DISTINCT IDBatch) AS [Nombre d''exécutions]
+FROM Gold.FactMesures
+GROUP BY CASE WHEN IDBatch LIKE 'scheduled%' THEN N'Schedulé' ELSE N'Manuel' END;
+
+-- Taux de disponibilité global (les deux APIs ont répondu)
+SELECT 
+    CAST(SUM(CASE WHEN MeteoStatus = 'OK' AND AirStatus = 'OK' THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,1)) AS [Taux de disponibilité global (%)]
+FROM Gold.FactMesures;
+
+-- Plage temporelle couverte
+SELECT 
+    MIN(DateHeure) AS [Première mesure],
+    MAX(DateHeure) AS [Dernière mesure],
+    DATEDIFF(DAY, MIN(DateHeure), MAX(DateHeure)) AS [Nombre de jours de collecte],
+    DATEDIFF(HOUR, MIN(DateHeure), MAX(DateHeure)) AS [Nombre d''heures de collecte]
+FROM Gold.DimTemps;
+
+-- Taille de la base de données
+EXEC sp_spaceused;
+
+-- Taux de disponibilité par ville (pourcentage de runs avec données complètes)
+SELECT l.NomVille,
+    COUNT(*) AS TotalRuns,
+    SUM(CASE WHEN f.MeteoStatus = 'OK' AND f.AirStatus = 'OK' THEN 1 ELSE 0 END) AS RunsComplets,
+    CAST(SUM(CASE WHEN f.MeteoStatus = 'OK' AND f.AirStatus = 'OK' THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,1)) AS PctDisponibilite
+FROM Gold.FactMesures f
+INNER JOIN Gold.DimLieux l ON f.IDLieu = l.IDLieu
+GROUP BY l.NomVille
+ORDER BY PctDisponibilite;
+
+-- Température moyenne par ville (min/max/moy)
+SELECT 
+    l.NomVille AS [Ville],
+    CAST(AVG(f.Temperature) AS DECIMAL(5,2)) AS [Température moyenne (°C)],
+    CAST(MIN(f.Temperature) AS DECIMAL(5,2)) AS [Température min (°C)],
+    CAST(MAX(f.Temperature) AS DECIMAL(5,2)) AS [Température max (°C)]
+FROM Gold.FactMesures f
+INNER JOIN Gold.DimLieux l ON f.IDLieu = l.IDLieu
+WHERE f.Temperature IS NOT NULL
+GROUP BY l.NomVille
+ORDER BY [Température moyenne (°C)] DESC;
+
+-- Qualité de l'air moyenne par ville
+SELECT 
+    l.NomVille AS [Ville],
+    CAST(AVG(f.AqiGlobal) AS INT) AS [AQI moyen],
+    CAST(AVG(f.PM25) AS DECIMAL(6,2)) AS [PM2.5 moyen],
+    CASE 
+        WHEN AVG(f.AqiGlobal) <= 50 THEN N'Bon'
+        WHEN AVG(f.AqiGlobal) <= 100 THEN N'Modéré'
+        WHEN AVG(f.AqiGlobal) <= 150 THEN N'Mauvais pour groupes sensibles'
+        ELSE N'Mauvais'
+    END AS [Qualité de l''air]
+FROM Gold.FactMesures f
+INNER JOIN Gold.DimLieux l ON f.IDLieu = l.IDLieu
+WHERE f.AqiGlobal IS NOT NULL
+GROUP BY l.NomVille
+ORDER BY [AQI moyen] DESC;
+
+-- Nombre de villes par créneau horaire (vérification de complétude)
+SELECT 
+    IDTemps AS [Créneau horaire],
+    COUNT(*) AS [Nombre de villes]
+FROM Gold.FactMesures
+GROUP BY IDTemps
+ORDER BY IDTemps DESC;
+
+-- Les 22 dernières mesures (2 derniers créneaux)
+SELECT TOP 22 
+    f.IDTemps AS [Créneau],
+    l.NomVille AS [Ville],
+    f.Temperature AS [Temp (°C)],
+    f.Humidite AS [Humidité (%)],
+    f.AqiGlobal AS [AQI],
+    f.MeteoStatus AS [Statut Météo],
+    f.AirStatus AS [Statut Air],
+    f.DateInsertion AS [Date d''insertion]
 FROM Gold.FactMesures f
 INNER JOIN Gold.DimLieux l ON f.IDLieu = l.IDLieu
 ORDER BY f.IDTemps DESC;
@@ -32,22 +134,6 @@ INNER JOIN Gold.DimLieux l ON f.IDLieu = l.IDLieu
 INNER JOIN Gold.DimTemps t ON f.IDTemps = t.IDTemps
 WHERE f.MeteoStatus = 'FAILED' OR f.AirStatus = 'FAILED'
 ORDER BY t.DateHeure DESC;
-
--- Température moyenne par ville
-SELECT l.NomVille, AVG(f.Temperature) AS TempMoyenne, COUNT(*) AS NbMesures
-FROM Gold.FactMesures f
-INNER JOIN Gold.DimLieux l ON f.IDLieu = l.IDLieu
-WHERE f.Temperature IS NOT NULL
-GROUP BY l.NomVille
-ORDER BY TempMoyenne DESC;
-
--- Qualité de l'air moyenne par ville (PM2.5)
-SELECT l.NomVille, AVG(f.PM25) AS PM25Moyen, AVG(f.AqiGlobal) AS AqiMoyen
-FROM Gold.FactMesures f
-INNER JOIN Gold.DimLieux l ON f.IDLieu = l.IDLieu
-WHERE f.PM25 IS NOT NULL
-GROUP BY l.NomVille
-ORDER BY PM25Moyen DESC;
 
 -- Comparer les mesures aux seuils OMS (PM2.5)
 SELECT l.NomVille, t.DateHeure, f.PM25, s.SeuilLimite, s.NiveauDanger,
@@ -70,42 +156,17 @@ WHERE s.Polluant = 'PM2.5' AND s.NiveauDanger = 'Limite OMS'
 GROUP BY l.NomVille
 ORDER BY NbDepassements DESC;
 
--- Seuils OMS de référence
-SELECT * FROM Ref.SeuilsOMS;
+-- Nombre de créneaux manquants (trous dans la collecte)
+SELECT COUNT(*) AS [Nombre de trous dans les données]
+FROM Gold.DimTemps t1
+INNER JOIN Gold.DimTemps t2 ON t2.IDTemps = (
+    SELECT MIN(IDTemps) FROM Gold.DimTemps WHERE IDTemps > t1.IDTemps
+)
+WHERE t2.IDTemps - t1.IDTemps > 1;
 
--- Pays de référence
-SELECT * FROM Ref.Pays;
-
--- Data Catalog : toutes les colonnes du DW
-SELECT * FROM Ref.DataCatalog ORDER BY NomSchema, NomTable, IDCatalog;
-
--- Data Catalog : colonnes d'une table spécifique
-SELECT NomColonne, TypeSQL, SourceAPI, CheminJSON, Description
-FROM Ref.DataCatalog
-WHERE NomTable = 'FactMesures'
-ORDER BY IDCatalog;
-
--- Data Catalog : tout ce qui vient d'AQICN
-SELECT NomTable, NomColonne, CheminJSON, Description
-FROM Ref.DataCatalog
-WHERE SourceAPI = 'AQICN';
-
--- Data Catalog : tout ce qui vient d'OpenWeatherMap
-SELECT NomTable, NomColonne, CheminJSON, Description
-FROM Ref.DataCatalog
-WHERE SourceAPI = 'OpenWeatherMap';
-
--- Taux de disponibilité par ville (pourcentage de runs avec données complètes)
-SELECT l.NomVille,
-    COUNT(*) AS TotalRuns,
-    SUM(CASE WHEN f.MeteoStatus = 'OK' AND f.AirStatus = 'OK' THEN 1 ELSE 0 END) AS RunsComplets,
-    CAST(SUM(CASE WHEN f.MeteoStatus = 'OK' AND f.AirStatus = 'OK' THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,1)) AS PctDisponibilite
-FROM Gold.FactMesures f
-INNER JOIN Gold.DimLieux l ON f.IDLieu = l.IDLieu
-GROUP BY l.NomVille
-ORDER BY PctDisponibilite;
-
--- Dernier batch exécuté
-SELECT TOP 1 IDBatch, DateModification
+-- Dernier run exécuté
+SELECT TOP 1 
+    IDBatch AS [Dernier batch],
+    DateModification AS [Dernière modification]
 FROM Gold.FactMesures
 ORDER BY DateModification DESC;
