@@ -261,3 +261,4 @@ docker compose build --no-cache
 - [Comment le changement du fuseau horaire à été géré](docs/CHANGEMENT_FUSEAU_HORAIRE.md) — explication détaillée du choix et de l'implémentation du fuseau horaire.
 - [Comment nous avons assuré la qualité des données](docs/QUALITE_DONNEES.md) — vérifications DQ appliquées à chaque étape du pipeline
 - [les images des résultats du projet](images/resultats_projet/) — captures d'écran de l'interface Airflow, MinIO, SQL Server, etc.
+- [Benchmark des outils](docs/BENCHMARK_OUTILS.md) — comparaison des différentes technologies envisagées pour chaque composant du pipeline, et justification des choix finaux.
