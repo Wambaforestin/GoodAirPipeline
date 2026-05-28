@@ -254,6 +254,7 @@ docker compose build --no-cache
 
 ## Documentation complémentaire et liens utiles
 
+- [Audit des sources de données](docs/AUDIT_SOURCES.md) — analyse détaillée des APIs, quotas, et qualité des données.
 - [Stratégie de stockage dans le data lake MinIO](docs/STRATEGIE_STOCKAGE.md) — organisation, partitionnement, et sécurité des données dans MinIO.
 - [Stratégie Data Warehouse](docs/STRATEGIE_DATAWAREHOUSE.md) — modélisation, schémas, MERGE et sécurité SQL Server
 - [Data Catalog](docs/DATA_CATALOG.md) — documentation des tables et colonnes.
