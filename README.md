@@ -136,6 +136,16 @@ docker compose ps    # Tout doit être "healthy"
 | MinIO Console     | http://localhost:9001 | (voir .env.example)      |
 | SQL Server (SSMS) | localhost,1433        | sa / (voir .env.example) |
 
+## Afin de lancer le pipeline automatiquement chaque heure
+
+> [!IMPORTANT]
+> Assurez-vous:
+>
+> - d'avoir rempli les clés API dans le fichier `.env`
+> - d'etre connecté à Internet pour que le pipeline puisse appeler les APIs
+> - d'etre connecté à la base SQL Server avec un outil comme SSMS et exécuter le script `src/sql/01_init_goodair.sql` pour créer la base de données et les tables nécessaires.
+> - d'enclancher le DAG `goodair_pipeline` dans l'interface Airflow pour qu'il s'exécute automatiquement chaque heure.
+
 ## Fuseau horaire
 
 ### Choix : Europe/Paris
