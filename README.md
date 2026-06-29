@@ -253,14 +253,13 @@ docker compose build --no-cache
 
 ## Prochaines étapes
 
-- [ ] Rôles et permissions SQL Server (Role_Chercheur, Role_Directeur, Role_RSSI)
 - [ ] Alertes Email en cas d'échec du pipeline
 - [ ] Création d'utilisateurs Airflow avec rôles distincts
 - [ ] Tests unitaires (Pytest) et un pipe de CI (GitHub Actions) pour automatiser les tests à chaque push
 - [ ] Migration du pilotage par config JSON vers table SQL `Ref.VillesCibles` (pour permettre aux chercheurs d'ajouter/supprimer des villes sans toucher au code)
 - [ ] Optimisation Polars si volumes > 1M lignes
-- [ ] Connexion `Power BI` / `Tableau` / `Metabase` au Data Warehouse: pour permettre aux chercheurs de faire leurs propres analyses et visualisations
-- [ ] Ajout des modèles de machine learning pour la prédiction sur des cas d'usage spécifiques (ex: prédiction de pics de pollution)
+- [ ] Connexion `Power BI` / `Tableau` / `Metabase` au Data Warehouse: pour créer des KPIs et dashboards de suivi de la qualité de l'air pour les chercheurs
+- [ ] Ajout des modèles de machine learning pour la prédiction sur des cas d'usage spécifiques (qui pourraient nécessiter des données supplémentaires) et voir comment les intégrer dans le pipeline ETL existant.
 
 ## Documentation complémentaire et liens utiles
 
