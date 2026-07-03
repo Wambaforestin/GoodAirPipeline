@@ -1,6 +1,5 @@
 import os
 import joblib
-import logging
 import pandas as pd
 from io import BytesIO
 from sqlalchemy import text
@@ -12,7 +11,6 @@ from src.utils.connections import (
     logger,
 )
 
-# Chemin du modèle
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "models/aqi_model.pkl")
 SEUIL_ALERTE = 100
 
@@ -81,34 +79,33 @@ def apply_alert_rule(aqi_predit):
 def write_predictions(engine, df_predictions, batch_id):
     """
     Écrit les prédictions dans Gold.AlertesPredites via MERGE.
-    Idempotent : si la prédiction existe déjà pour (IDLieu. IDTemps). on la met à jour.
+    Table sans FK — NomVille et IDTemps sont stockés directement.
+    Idempotent : si la prédiction existe déjà pour (NomVille. IDTemps). on la met à jour.
     """
     merge_sql = text("""
         MERGE Gold.AlertesPredites AS target
         USING (
             SELECT
-                l.IDLieu,
+                :nom_ville  AS NomVille,
                 :id_temps   AS IDTemps,
                 :aqi_predit AS AQI_Predit,
                 :alerte     AS Alerte,
                 :batch_id   AS IDBatch
-            FROM Gold.DimLieux l
-            WHERE l.NomVille = :nom_ville
         ) AS source
-        ON target.IDLieu = source.IDLieu
+        ON target.NomVille = source.NomVille
         AND target.IDTemps = source.IDTemps
 
         WHEN MATCHED THEN UPDATE SET
-            target.AQI_Predit      = source.AQI_Predit,
-            target.Alerte          = source.Alerte,
-            target.DatePrediction  = GETDATE() AT TIME ZONE 'UTC'
-                                     AT TIME ZONE 'Romance Standard Time',
-            target.IDBatch         = source.IDBatch
+            target.AQI_Predit     = source.AQI_Predit,
+            target.Alerte         = source.Alerte,
+            target.DatePrediction = GETDATE() AT TIME ZONE 'UTC'
+                                    AT TIME ZONE 'Romance Standard Time',
+            target.IDBatch        = source.IDBatch
 
         WHEN NOT MATCHED THEN INSERT (
-            IDLieu, IDTemps, AQI_Predit, Alerte, DatePrediction, IDBatch
+            NomVille, IDTemps, AQI_Predit, Alerte, DatePrediction, IDBatch
         ) VALUES (
-            source.IDLieu,
+            source.NomVille,
             source.IDTemps,
             source.AQI_Predit,
             source.Alerte,
@@ -159,18 +156,14 @@ def run_predict(run_date, batch_id):
     engine = get_sql_engine()
     model = load_model()
 
-    # Chargement des features
     df = load_features(minio_client, run_date)
 
-    # Vérification du data contract
     missing = [f for f in FEATURES if f not in df.columns]
     assert not missing, f"Features manquantes : {missing}"
 
-    # Prédiction
     X = df[FEATURES]
     aqi_predits = model.predict(X)
 
-    # Application de la règle métier
     df["AQI_Predit"] = aqi_predits
     df["Alerte"] = df["AQI_Predit"].apply(apply_alert_rule)
 
@@ -179,7 +172,6 @@ def run_predict(run_date, batch_id):
         f"{(df['Alerte'] == 'ALERTE').sum()} alerte(s)."
     )
 
-    # Écriture dans Gold.AlertesPredites
     write_predictions(engine, df, batch_id)
 
     return True

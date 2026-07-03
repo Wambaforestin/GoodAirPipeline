@@ -24,4 +24,7 @@ RUN pip install --no-cache-dir \
     pyyaml \
     numpy \
     python-dotenv \
+    scikit-learn==1.9.0 \
+    xgboost \
+    joblib \
     apache-airflow-providers-microsoft-mssql

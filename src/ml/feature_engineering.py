@@ -15,7 +15,6 @@ from src.utils.connections import (
 
 PARIS_TZ = ZoneInfo("Europe/Paris")
 
-# Colonnes One-Hot attendues par le modèle (ordre du training)
 VILLE_COLS = [
     "ville_Bordeaux",
     "ville_Franconville",
@@ -82,7 +81,6 @@ def compute_aqi_mean_6h(minio_client, run_date, city_name):
             if not city_row.empty and not pd.isna(city_row["AqiGlobal"].values[0]):
                 aqi_values.append(city_row["AqiGlobal"].values[0])
         except Exception:
-            # Trou temporel : on passe à l'heure suivante
             continue
 
     if aqi_values:
@@ -95,35 +93,32 @@ def compute_aqi_mean_6h(minio_client, run_date, city_name):
 def load_open_meteo_forecast(minio_client, run_date, city_name):
     """
     Lit les prévisions Open-Meteo depuis Bronze pour H+1 à H+6.
-    Retourne un dict indexé par heure future.
+    Retourne un dict indexé par naive datetime (sans timezone) pour comparaison.
     """
     partition = get_partition_path("open-meteo", run_date)
     object_path = f"{partition}{city_name}.json"
 
-    try:
-        response = minio_client.get_object("bronze", object_path)
-        data = json.loads(response.read())
+    response = minio_client.get_object("bronze", object_path)
+    data = json.loads(response.read())
 
-        hourly = data["hourly"]
-        times = hourly["time"]
-        forecasts = {}
+    hourly = data["hourly"]
+    times = hourly["time"]
 
-        for i, t in enumerate(times):
-            dt = pd.to_datetime(t).tz_localize("UTC").astimezone(PARIS_TZ)
-            forecasts[dt] = {
-                "wind_direction_10m": hourly["wind_direction_10m"][i],
-                "cloud_cover": hourly["cloud_cover"][i],
-                "precipitation": hourly["precipitation"][i],
-            }
+    # FIX timezone : timestamps Open-Meteo déjà en Europe/Paris
+    # On garde des naive datetime pour la comparaison avec future_dt
+    forecasts = {}
+    for i, t in enumerate(times):
+        dt = pd.to_datetime(t)  # naive datetime. sans timezone
+        forecasts[dt] = {
+            "wind_direction_10m": hourly["wind_direction_10m"][i],
+            "cloud_cover": hourly["cloud_cover"][i],
+            "precipitation": hourly["precipitation"][i],
+        }
 
-        logger.info(
-            f"Open-Meteo Forecast chargé pour {city_name} : {len(forecasts)} heures"
-        )
-        return forecasts
-
-    except Exception as e:
-        logger.error(f"Erreur lecture Open-Meteo Bronze pour {city_name} : {e}")
-        raise
+    logger.info(
+        f"Open-Meteo Forecast chargé pour {city_name} : {len(forecasts)} heures"
+    )
+    return forecasts
 
 
 def apply_transformations(row):
@@ -137,31 +132,22 @@ def apply_transformations(row):
     mois = row["mois"]
 
     features = {
-        # Variables GoodAir brutes
         "Temperature": row["Temperature"],
         "Humidite": row["Humidite"],
         "Pression": row["Pression"],
         "VitesseVent": row["VitesseVent"],
-        # Encodage cyclique Heure
         "Heure_sin": np.sin(2 * np.pi * heure / 24),
         "Heure_cos": np.cos(2 * np.pi * heure / 24),
-        # Encodage cyclique Mois
         "Mois_sin": np.sin(2 * np.pi * mois / 12),
         "Mois_cos": np.cos(2 * np.pi * mois / 12),
-        # IsWeekend
         "IsWeekend": row["IsWeekend"],
-        # Encodage cyclique direction du vent (variable circulaire 0-360)
         "wind_dir_sin": np.sin(2 * np.pi * row["wind_direction_10m"] / 360),
         "wind_dir_cos": np.cos(2 * np.pi * row["wind_direction_10m"] / 360),
-        # Couverture nuageuse brute
         "cloud_cover": row["cloud_cover"],
-        # Binarisation précipitation
         "precipitation_bin": 1 if row["precipitation"] > 0 else 0,
-        # Feature temporelle
         "AQI_mean_6h": row["AQI_mean_6h"],
     }
 
-    # One-Hot Encoding NomVille
     for col in VILLE_COLS:
         features[col] = 1 if col == f"ville_{row['NomVille']}" else 0
 
@@ -177,7 +163,6 @@ def build_features(run_date):
     minio_client = get_minio_client()
     cities = load_cities_config()
 
-    # Chargement du Silver courant (données GoodAir de l'heure actuelle)
     df_silver = load_silver_mesures(minio_client, run_date)
 
     rows = []
@@ -186,7 +171,6 @@ def build_features(run_date):
         city_name = city["city"]
         logger.info(f"Construction des features pour {city_name}...")
 
-        # Données GoodAir de l'heure courante
         city_row = df_silver[df_silver["NomVille"] == city_name]
         if city_row.empty:
             logger.warning(f"Pas de données Silver pour {city_name}. Skip.")
@@ -194,20 +178,26 @@ def build_features(run_date):
 
         gd = city_row.iloc[0]
 
-        # AQI moyen des 6 dernières heures
         aqi_mean_6h = compute_aqi_mean_6h(minio_client, run_date, city_name)
 
-        # Prévisions Open-Meteo H+1 à H+6
         try:
             forecasts = load_open_meteo_forecast(minio_client, run_date, city_name)
         except Exception:
             logger.warning(f"Open-Meteo indisponible pour {city_name}. Skip.")
             continue
 
-        # Itération sur les 6 prochaines heures
         for h in range(1, 7):
             future_date = run_date + pd.Timedelta(hours=h)
-            future_dt = future_date.replace(minute=0, second=0, microsecond=0)
+
+            # FIX timezone : naive datetime pour correspondre aux timestamps Open-Meteo
+            future_dt = pd.Timestamp(
+                future_date.year,
+                future_date.month,
+                future_date.day,
+                future_date.hour,
+                0,
+                0,
+            )
 
             if future_dt not in forecasts:
                 logger.warning(
@@ -247,11 +237,9 @@ def build_features(run_date):
 
     df_features = pd.DataFrame(rows)
 
-    # Vérification du contrat de données
     missing = [f for f in FEATURES if f not in df_features.columns]
     assert not missing, f"Features manquantes : {missing}"
 
-    # Écriture dans Silver/features-ml/
     partition = get_partition_path("features-ml", run_date)
     object_path = f"{partition}features.parquet"
     buffer = BytesIO()

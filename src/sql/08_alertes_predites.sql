@@ -5,19 +5,15 @@ USE GoodAirDW;
 GO
 
 CREATE TABLE Gold.AlertesPredites (
-    IDLieu         INT NOT NULL,
+    NomVille       NVARCHAR(100) NOT NULL,
     IDTemps        BIGINT NOT NULL,
     AQI_Predit     DECIMAL(6,2) NOT NULL,
-    Alerte         VARCHAR(20) NOT NULL,       -- 'OK' ou 'ALERTE'
+    Alerte         VARCHAR(20) NOT NULL,
     DatePrediction DATETIME2 NOT NULL DEFAULT
                    GETDATE() AT TIME ZONE 'UTC'
                    AT TIME ZONE 'Romance Standard Time',
     IDBatch        VARCHAR(100) NOT NULL,
     CONSTRAINT PK_Gold_AlertesPredites
-        PRIMARY KEY CLUSTERED (IDLieu, IDTemps),
-    CONSTRAINT FK_Alertes_DimLieux
-        FOREIGN KEY (IDLieu) REFERENCES Gold.DimLieux(IDLieu),
-    CONSTRAINT FK_Alertes_DimTemps
-        FOREIGN KEY (IDTemps) REFERENCES Gold.DimTemps(IDTemps)
+        PRIMARY KEY CLUSTERED (NomVille, IDTemps)
 );
 GO
