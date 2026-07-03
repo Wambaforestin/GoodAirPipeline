@@ -53,7 +53,7 @@ def extract_open_meteo(latitude, longitude, variables):
         "latitude"      : latitude,
         "longitude"     : longitude,
         "hourly"        : ",".join(variables),
-        "forecast_hours": 6,
+        "forecast_hours": 8,  # 8 au lieu de 6 pour absorber le décalage
         "timezone"      : "Europe/Paris"
     }
 

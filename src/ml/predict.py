@@ -83,36 +83,39 @@ def write_predictions(engine, df_predictions, batch_id):
     Idempotent : si la prédiction existe déjà pour (NomVille. IDTemps). on la met à jour.
     """
     merge_sql = text("""
-        MERGE Gold.AlertesPredites AS target
-        USING (
-            SELECT
-                :nom_ville  AS NomVille,
-                :id_temps   AS IDTemps,
-                :aqi_predit AS AQI_Predit,
-                :alerte     AS Alerte,
-                :batch_id   AS IDBatch
-        ) AS source
-        ON target.NomVille = source.NomVille
-        AND target.IDTemps = source.IDTemps
+    MERGE Gold.AlertesPredites AS target
+    USING (
+        SELECT
+            :nom_ville         AS NomVille,
+            :id_temps          AS IDTemps,
+            :date_heure_predite AS DateHeurePredite,
+            :aqi_predit        AS AQI_Predit,
+            :alerte            AS Alerte,
+            :batch_id          AS IDBatch
+    ) AS source
+    ON target.NomVille = source.NomVille
+    AND target.IDTemps = source.IDTemps
 
-        WHEN MATCHED THEN UPDATE SET
-            target.AQI_Predit     = source.AQI_Predit,
-            target.Alerte         = source.Alerte,
-            target.DatePrediction = GETDATE() AT TIME ZONE 'UTC'
-                                    AT TIME ZONE 'Romance Standard Time',
-            target.IDBatch        = source.IDBatch
+    WHEN MATCHED THEN UPDATE SET
+        target.AQI_Predit        = source.AQI_Predit,
+        target.Alerte            = source.Alerte,
+        target.DateHeurePredite  = source.DateHeurePredite,
+        target.DatePrediction    = GETDATE() AT TIME ZONE 'UTC'
+                                   AT TIME ZONE 'Romance Standard Time',
+        target.IDBatch           = source.IDBatch
 
-        WHEN NOT MATCHED THEN INSERT (
-            NomVille, IDTemps, AQI_Predit, Alerte, DatePrediction, IDBatch
-        ) VALUES (
-            source.NomVille,
-            source.IDTemps,
-            source.AQI_Predit,
-            source.Alerte,
-            GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard Time',
-            source.IDBatch
-        );
-    """)
+    WHEN NOT MATCHED THEN INSERT (
+        NomVille, IDTemps, DateHeurePredite, AQI_Predit, Alerte, DatePrediction, IDBatch
+    ) VALUES (
+        source.NomVille,
+        source.IDTemps,
+        source.DateHeurePredite,
+        source.AQI_Predit,
+        source.Alerte,
+        GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard Time',
+        source.IDBatch
+    );
+""")
 
     nb_alertes = 0
 
@@ -123,6 +126,7 @@ def write_predictions(engine, df_predictions, batch_id):
                 {
                     "nom_ville": row["NomVille"],
                     "id_temps": int(row["IDTemps"]),
+                    "date_heure_predite" : pd.to_datetime(str(row["IDTemps"]), format="%Y%m%d%H"),
                     "aqi_predit": float(row["AQI_Predit"]),
                     "alerte": row["Alerte"],
                     "batch_id": batch_id,

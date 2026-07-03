@@ -186,7 +186,7 @@ def build_features(run_date):
             logger.warning(f"Open-Meteo indisponible pour {city_name}. Skip.")
             continue
 
-        for h in range(1, 7):
+        for h in range(0, 7):
             future_date = run_date + pd.Timedelta(hours=h)
 
             # FIX timezone : naive datetime pour correspondre aux timestamps Open-Meteo
