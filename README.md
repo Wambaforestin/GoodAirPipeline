@@ -289,7 +289,6 @@ docker compose build --no-cache
 - [ ] Création d'utilisateurs Airflow avec rôles distincts
 - [ ] Tests unitaires (Pytest) et un pipe de CI (GitHub Actions) pour automatiser les tests à chaque push
 - [ ] Migration du pilotage par config JSON vers table SQL `Ref.VillesCibles` (pour permettre aux chercheurs d'ajouter/supprimer des villes sans toucher au code)
-- [ ] Optimisation Polars si volumes > 1M lignes
 - [ ] Connexion `Power BI` / `Tableau` / `Metabase` au Data Warehouse: pour créer des KPIs et dashboards de suivi de la qualité de l'air pour les chercheurs
 - [ ] Ajout des modèles de machine learning pour la prédiction sur des cas d'usage spécifiques (qui pourraient nécessiter des données supplémentaires) et voir comment les intégrer dans le pipeline ETL existant.
 
