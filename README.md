@@ -86,27 +86,59 @@ Les données [météorologiques](https://openweathermap.org/api)
 
 ![Retry Airflow](images/resultats_projet/retry_success.png)
 
-## Structure du Projet
+## Structure du Projet (mis à jour suite a l'intgration de la partie IA)
 
 ```text
 GoodAirPipeline/
-├── dags/                  # DAGs Airflow
-├── docs/                 # Documentation (Data Catalog, principes de dev, etc.)
-├── src/
-│   ├── extract/           # Appels API → Bronze (JSON brut dans MinIO)
-│   ├── transform/         # Nettoyage & DQ → Silver (Parquet dans MinIO)
-│   ├── load/              # Staging → MERGE → Gold (SQL Server)
-│   ├── utils/             # Connexions DB, MinIO, config, logging
-│   └── sql/               # Scripts DDL, MERGE, Data Catalog
-├── tests/                 # Tests unitaires (Pytest)
 ├── config/
-│   ├── cities_config.json # Villes à surveiller (pilotage par config)
-│   └── pipeline_config.yaml
-├── .env.example           # Template des variables d'environnement
-├── docker-compose.yml     # Infra complète (Airflow + SQL Server + MinIO)
-├── Dockerfile             # Image Airflow custom (ODBC + dépendances)
-├── DATA_CATALOG.md        # Documentation des tables et colonnes
-├── pyproject.toml         # Dépendances Python (uv)
+│   ├── cities_config.json
+│   ├── pipeline_config.yaml
+│   └── open_meteo_config.json          # nouveau
+│
+├── data/
+│   ├── raw/
+│   │   ├── open_meteo_historique/      # 1 CSV par ville (téléchargé manuellement)
+│   │   │   ├── Paris.csv
+│   │   │   ├── Lyon.csv
+│   │   │   └── ...
+│   │   └── goodair_historique/         # export SQL FactMesures pour EDA
+│   │       └── export_FactMesures.csv
+│   └── processed/                      # fichiers préparés par les notebooks
+│       └── open_meteo_combined.csv
+│
+├── notebooks/
+│   ├── 01_eda_goodair.ipynb
+│   ├── 02_eda_open_meteo.ipynb
+│   ├── 03_eda_combined.ipynb           # EDA fusionnée (GoodAir + Open-Meteo)
+│   ├── 04_data_preparation.ipynb       # Préparation : INNER JOIN, feature engineering,
+│   ├── 05_modeling.ipynb                
+│   └── 06_evaluation.ipynb
+│
+├── src/
+│   ├── extract/
+│   │   └── extract_apis.py             # modifié — ajout Open-Meteo prod
+│   ├── transform/
+│   │   └── transform_silver.py         # inchangé
+│   ├── load/
+│   │   └── load_gold.py                # inchangé
+│   ├── ml/
+│   │   ├── feature_engineering.py
+│   │   ├── predict.py
+│   │   └── models/
+│   │       └── aqi_model.pkl
+│   ├── sql/
+│   │   └── 08_alertes_predites.sql     nouveau - DDL table Gold.AlertesPredites
+│   └── utils/
+│       └── connections.py              # inchangé
+│
+├── tests/
+├── dags/
+│   └── goodair_dag.py                  # modifié
+├── docs/
+├── .env.example
+├── docker-compose.yml
+├── Dockerfile
+├── pyproject.toml
 └── README.md
 ```
 
