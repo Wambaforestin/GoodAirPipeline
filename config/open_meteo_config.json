@@ -1,0 +1,21 @@
+{
+  "variables": [
+    "wind_direction_10m",
+    "cloud_cover",
+    "precipitation",
+    "uv_index"
+  ],
+  "cities": [
+    { "name": "Lille",        "latitude": 50.633000, "longitude":  3.058600 },
+    { "name": "Lyon",         "latitude": 45.750000, "longitude":  4.583300 },
+    { "name": "Paris",        "latitude": 48.853400, "longitude":  2.348800 },
+    { "name": "Bordeaux",     "latitude": 44.840400, "longitude": -0.580500 },
+    { "name": "Marseille",    "latitude": 43.333000, "longitude":  5.000000 },
+    { "name": "Nantes",       "latitude": 47.166700, "longitude": -1.583300 },
+    { "name": "Nice",         "latitude": 44.000000, "longitude":  7.250000 },
+    { "name": "Rennes",       "latitude": 48.166700, "longitude": -1.666700 },
+    { "name": "Strasbourg",   "latitude": 48.583400, "longitude":  7.743000 },
+    { "name": "Toulouse",     "latitude": 43.604300, "longitude":  1.443700 },
+    { "name": "Franconville", "latitude": 48.983300, "longitude":  2.233300 }
+  ]
+}
