@@ -62,6 +62,14 @@ def load_cities_config():
         cities = json.load(f)
     return cities
 
+def load_open_meteo_config():
+    """Charge la configuration Open-Meteo depuis le fichier JSON."""
+    config_path = os.path.join(
+        os.path.dirname(__file__), "../../config/open_meteo_config.json"
+    )
+    with open(config_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
 
 def get_partition_path(api_name, run_date):
     """Génère le chemin de partitionnement Bronze/Silver à partir d'une date."""
