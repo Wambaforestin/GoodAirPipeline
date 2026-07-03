@@ -2,8 +2,7 @@
   "variables": [
     "wind_direction_10m",
     "cloud_cover",
-    "precipitation",
-    "uv_index"
+    "precipitation"
   ],
   "cities": [
     { "name": "Lille",        "latitude": 50.633000, "longitude":  3.058600 },
