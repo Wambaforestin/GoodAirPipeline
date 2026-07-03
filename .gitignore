@@ -22,3 +22,12 @@ plugins/
 # === OS ===
 .DS_Store
 Thumbs.db
+
+## === Jupyter Notebook ===
+.ipynb_checkpoints/
+
+## === ai ===
+# Données ML locales
+data/raw/
+data/processed/
+src/ml/models/*.pkl

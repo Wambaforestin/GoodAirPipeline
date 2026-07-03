@@ -86,7 +86,7 @@ Les données [météorologiques](https://openweathermap.org/api)
 
 ![Retry Airflow](images/resultats_projet/retry_success.png)
 
-## Structure du Projet (mis à jour suite a l'intgration de la partie IA)
+## Structure du Projet (mis à jour suite a l'intégration de la partie IA)
 
 ```text
 GoodAirPipeline/
