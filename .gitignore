@@ -31,3 +31,4 @@ Thumbs.db
 data/raw/
 data/processed/
 src/ml/models/*.pkl
+src/ml/models/*.json
