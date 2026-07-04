@@ -170,3 +170,56 @@ SELECT TOP 1
     DateModification AS [Dernière modification]
 FROM Gold.FactMesures
 ORDER BY DateModification DESC;
+
+
+-- Toutes les prédictions actuelles
+SELECT 
+    l.NomVille,
+    a.DateHeurePredite,
+    a.AQI_Predit,
+    a.Alerte,
+    a.DatePrediction,
+    a.IDBatch
+FROM Gold.AlertesPredites a
+INNER JOIN Gold.DimLieux l ON a.IDLieu = l.IDLieu
+ORDER BY a.DateHeurePredite, l.NomVille;
+
+-- Prédictions par ville pour les prochaines heures
+SELECT 
+    l.NomVille,
+    a.DateHeurePredite,
+    a.AQI_Predit,
+    a.Alerte
+FROM Gold.AlertesPredites a
+INNER JOIN Gold.DimLieux l ON a.IDLieu = l.IDLieu
+WHERE a.DateHeurePredite >= GETDATE()
+ORDER BY l.NomVille, a.DateHeurePredite;
+
+-- Alertes uniquement
+SELECT 
+    l.NomVille,
+    a.DateHeurePredite,
+    a.AQI_Predit,
+    a.DatePrediction
+FROM Gold.AlertesPredites a
+INNER JOIN Gold.DimLieux l ON a.IDLieu = l.IDLieu
+WHERE a.Alerte = 'ALERTE'
+ORDER BY a.DateHeurePredite;
+
+-- AQI moyen prédit par ville
+SELECT 
+    l.NomVille,
+    ROUND(AVG(a.AQI_Predit), 2) AS AQI_Moyen_Predit,
+    COUNT(*) AS NbPredictions
+FROM Gold.AlertesPredites a
+INNER JOIN Gold.DimLieux l ON a.IDLieu = l.IDLieu
+GROUP BY l.NomVille
+ORDER BY AQI_Moyen_Predit DESC;
+
+-- Dernière prédiction par ville
+SELECT 
+    l.NomVille,
+    MAX(a.DateHeurePredite) AS DernierHoraire,
+    MAX(a.DatePrediction)   AS DernierRun
+FROM Gold.AlertesPredites a
+INNER JOIN Gold.DimLieux l ON a.IDLieu = l.IDLieu
