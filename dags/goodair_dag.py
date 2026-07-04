@@ -150,7 +150,7 @@ def send_aqi_alert(city, aqi_predit, date_heure_predite):
 
 default_args = {
     "owner": "goodair",
-    "retries": 0,
+    "retries": 2,
     "retry_delay": timedelta(minutes=5),
     "on_failure_callback": on_failure_callback,
 }
