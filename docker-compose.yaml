@@ -17,6 +17,11 @@ x-airflow-common:
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+    AIRFLOW__SMTP__SMTP_HOST: "smtp.gmail.com"
+    AIRFLOW__SMTP__SMTP_PORT: "587"
+    AIRFLOW__SMTP__SMTP_USER: "wambadata123@gmail.com"
+    AIRFLOW__SMTP__SMTP_PASSWORD: "${SMTP_PASSWORD}"
+    AIRFLOW__SMTP__SMTP_MAIL_FROM: "wambadata123@gmail.com"
     # Override pour le réseau Docker (dans .env c'est localhost pour SSMS)
     MSSQL_HOST: sqlserver
     PYTHONPATH: /opt/airflow

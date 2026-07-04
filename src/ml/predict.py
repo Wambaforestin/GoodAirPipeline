@@ -76,69 +76,76 @@ def apply_alert_rule(aqi_predit):
         return "OK"
 
 
-def write_predictions(engine, df_predictions, batch_id):
+def write_predictions(engine, df_predictions, batch_id, send_aqi_alert=None):
     """
     Écrit les prédictions dans Gold.AlertesPredites via MERGE.
     Table sans FK — NomVille et IDTemps sont stockés directement.
     Idempotent : si la prédiction existe déjà pour (NomVille. IDTemps). on la met à jour.
+    Déclenche send_aqi_alert si AQI prédit > 100.
     """
     merge_sql = text("""
-    MERGE Gold.AlertesPredites AS target
-    USING (
-        SELECT
-            :nom_ville         AS NomVille,
-            :id_temps          AS IDTemps,
-            :date_heure_predite AS DateHeurePredite,
-            :aqi_predit        AS AQI_Predit,
-            :alerte            AS Alerte,
-            :batch_id          AS IDBatch
-    ) AS source
-    ON target.NomVille = source.NomVille
-    AND target.IDTemps = source.IDTemps
+        MERGE Gold.AlertesPredites AS target
+        USING (
+            SELECT
+                :nom_ville          AS NomVille,
+                :id_temps           AS IDTemps,
+                :date_heure_predite AS DateHeurePredite,
+                :aqi_predit         AS AQI_Predit,
+                :alerte             AS Alerte,
+                :batch_id           AS IDBatch
+        ) AS source
+        ON target.NomVille = source.NomVille
+        AND target.IDTemps = source.IDTemps
 
-    WHEN MATCHED THEN UPDATE SET
-        target.AQI_Predit        = source.AQI_Predit,
-        target.Alerte            = source.Alerte,
-        target.DateHeurePredite  = source.DateHeurePredite,
-        target.DatePrediction    = GETDATE() AT TIME ZONE 'UTC'
-                                   AT TIME ZONE 'Romance Standard Time',
-        target.IDBatch           = source.IDBatch
+        WHEN MATCHED THEN UPDATE SET
+            target.AQI_Predit        = source.AQI_Predit,
+            target.Alerte            = source.Alerte,
+            target.DateHeurePredite  = source.DateHeurePredite,
+            target.DatePrediction    = GETDATE() AT TIME ZONE 'UTC'
+                                       AT TIME ZONE 'Romance Standard Time',
+            target.IDBatch           = source.IDBatch
 
-    WHEN NOT MATCHED THEN INSERT (
-        NomVille, IDTemps, DateHeurePredite, AQI_Predit, Alerte, DatePrediction, IDBatch
-    ) VALUES (
-        source.NomVille,
-        source.IDTemps,
-        source.DateHeurePredite,
-        source.AQI_Predit,
-        source.Alerte,
-        GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard Time',
-        source.IDBatch
-    );
-""")
+        WHEN NOT MATCHED THEN INSERT (
+            NomVille, IDTemps, DateHeurePredite, AQI_Predit, Alerte, DatePrediction, IDBatch
+        ) VALUES (
+            source.NomVille,
+            source.IDTemps,
+            source.DateHeurePredite,
+            source.AQI_Predit,
+            source.Alerte,
+            GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard Time',
+            source.IDBatch
+        );
+    """)
 
     nb_alertes = 0
 
     with engine.connect() as conn:
         for _, row in df_predictions.iterrows():
+            future_dt = pd.to_datetime(str(int(row["IDTemps"])), format="%Y%m%d%H")
+
             conn.execute(
                 merge_sql,
                 {
                     "nom_ville": row["NomVille"],
                     "id_temps": int(row["IDTemps"]),
-                    "date_heure_predite" : pd.to_datetime(str(row["IDTemps"]), format="%Y%m%d%H"),
+                    "date_heure_predite": future_dt,
                     "aqi_predit": float(row["AQI_Predit"]),
                     "alerte": row["Alerte"],
                     "batch_id": batch_id,
                 },
             )
+
             if row["Alerte"] == "ALERTE":
                 nb_alertes += 1
                 logger.warning(
-                    f"ALERTE POLLUTION — {row['NomVille']} "
+                    f"ALERTE POLLUTION - {row['NomVille']} "
                     f"IDTemps={row['IDTemps']} "
                     f"AQI prédit={row['AQI_Predit']:.1f}"
                 )
+                if send_aqi_alert:
+                    send_aqi_alert(row["NomVille"], row["AQI_Predit"], future_dt)
+
         conn.commit()
 
     logger.info(
@@ -147,7 +154,7 @@ def write_predictions(engine, df_predictions, batch_id):
     )
 
 
-def run_predict(run_date, batch_id):
+def run_predict(run_date, batch_id, send_aqi_alert=None):
     """
     Point d entrée principal. Appelé par le DAG Airflow.
     1. Charge le modèle
@@ -155,6 +162,7 @@ def run_predict(run_date, batch_id):
     3. Prédit l AQI pour chaque ville et chaque heure future
     4. Applique la règle métier (> 100 = ALERTE)
     5. Écrit dans Gold.AlertesPredites
+    6. Envoie une alerte email si AQI prédit > 100
     """
     minio_client = get_minio_client()
     engine = get_sql_engine()
@@ -176,6 +184,6 @@ def run_predict(run_date, batch_id):
         f"{(df['Alerte'] == 'ALERTE').sum()} alerte(s)."
     )
 
-    write_predictions(engine, df, batch_id)
+    write_predictions(engine, df, batch_id, send_aqi_alert)
 
     return True
