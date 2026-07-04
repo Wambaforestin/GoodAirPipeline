@@ -93,7 +93,7 @@ GoodAirPipeline/
 ├── config/
 │   ├── cities_config.json
 │   ├── pipeline_config.yaml
-│   └── open_meteo_config.json          # nouveau
+│   └── open_meteo_config.json          # nouveau - config pour l'API Open-Meteo
 │
 ├── data/
 │   ├── raw/
@@ -106,24 +106,25 @@ GoodAirPipeline/
 │   └── processed/                      # fichiers préparés par les notebooks
 │       └── open_meteo_combined.csv
 │
+├── Rapports_ml/                        # rapports de performance des modèles ML
 ├── notebooks/
-│   ├── 01_eda_goodair.ipynb
-│   ├── 02_eda_open_meteo.ipynb
+│   ├── 01_eda_goodair.ipynb            # EDA sur les données GoodAir (FactMesures)
+│   ├── 02_eda_open_meteo.ipynb         # EDA sur les données Open-Meteo (historique)
 │   ├── 03_eda_combined.ipynb           # EDA fusionnée (GoodAir + Open-Meteo)
-│   ├── 04_data_preparation.ipynb       # Préparation : INNER JOIN, feature engineering,
-│   ├── 05_modeling.ipynb                
-│   └── 06_evaluation.ipynb
+│   ├── 04_data_preparation.ipynb       # Préparation : INNER JOIN, feature engineering,normalisation, split time series
+│   ├── 05_modeling.ipynb               # Modélisation : entraînement et validation des modèles ML
+│   └── 06_evaluation.ipynb             # Évaluation finale et sélection du meilleur modèle      
 │
 ├── src/
 │   ├── extract/
-│   │   └── extract_apis.py             # modifié — ajout Open-Meteo prod
+│   │   └── extract_apis.py             # modifié — ajout Open-Meteo de l'appel API et du stockage dans le Data Lake
 │   ├── transform/
 │   │   └── transform_silver.py         # inchangé
 │   ├── load/
 │   │   └── load_gold.py                # inchangé
 │   ├── ml/
-│   │   ├── feature_engineering.py
-│   │   ├── predict.py
+│   │   ├── feature_engineering.py      # ajout de la feature engineering pour le modèle ML
+│   │   ├── predict.py                  # ajout de la prédiction AQI avec le modèle ML
 │   │   └── models/
 │   │       └── aqi_model.pkl
 │   ├── sql/
