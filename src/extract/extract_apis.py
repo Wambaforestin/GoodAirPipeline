@@ -46,14 +46,14 @@ def extract_aqicn(city, api_key):
 def extract_open_meteo(latitude, longitude, variables):
     """
     Appelle l'API Open-Meteo Forecast pour une ville donnée.
-    Retourne les prévisions horaires sur les 6 prochaines heures.
+    Retourne les prévisions horaires sur les 10 prochaines heures.
     """
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
         "latitude"      : latitude,
         "longitude"     : longitude,
         "hourly"        : ",".join(variables),
-        "forecast_hours": 8,  # 8 au lieu de 6 pour absorber le décalage
+        "forecast_hours": 10,  # 10 au lieu de 6 pour absorber le décalage
         "timezone"      : "Europe/Paris"
     }
 
