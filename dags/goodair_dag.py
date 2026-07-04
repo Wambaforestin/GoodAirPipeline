@@ -11,6 +11,8 @@ from src.ml.feature_engineering import build_features
 from src.ml.predict import run_predict
 from src.utils.connections import to_paris_time
 
+import os
+
 
 def on_failure_callback(context):
     task_id = context["task_instance"].task_id
@@ -18,12 +20,7 @@ def on_failure_callback(context):
     exec_date = context["execution_date"]
 
     send_email(
-        to=[
-            "f.wanbazebaze@ecoles-epsi.net",
-            "d.bounguilikoua1@ecoles-epsi.net",
-            "hafsa.belkasmi@ecoles-epsi.net",
-            "saad.bourrich@ecoles-epsi.net",
-        ],
+        to=os.getenv("ALERT_EMAILS").split(","),
         subject=f"[Projet MSPR: GoodAir] Échec - {dag_id} / {task_id}",
         html_content=f"""
         <html>
@@ -79,12 +76,7 @@ def on_failure_callback(context):
 
 def send_aqi_alert(city, aqi_predit, date_heure_predite):
     send_email(
-        to=[
-            "f.wanbazebaze@ecoles-epsi.net",
-            "d.bounguilikoua1@ecoles-epsi.net",
-            "hafsa.belkasmi@ecoles-epsi.net",
-            "saad.bourrich@ecoles-epsi.net",
-        ],
+        to=os.getenv("ALERT_EMAILS").split(","),
         subject=f"[Projet MSPR: GoodAir] Alerte Pollution - {city}",
         html_content=f"""
         <html>
