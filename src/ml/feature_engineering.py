@@ -1,5 +1,4 @@
 import json
-import logging
 import numpy as np
 import pandas as pd
 from io import BytesIO
@@ -9,7 +8,6 @@ from src.utils.connections import (
     get_minio_client,
     get_partition_path,
     load_cities_config,
-    to_paris_time,
     logger,
 )
 
