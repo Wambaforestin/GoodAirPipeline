@@ -223,3 +223,5 @@ SELECT
     MAX(a.DatePrediction)   AS DernierRun
 FROM Gold.AlertesPredites a
 INNER JOIN Gold.DimLieux l ON a.IDLieu = l.IDLieu
+GROUP BY l.NomVille
+ORDER BY l.NomVille;
