@@ -1,4 +1,4 @@
-# Audit de la Source Open-Meteo — GoodAir Pipeline
+# Audit de la Source Open-Meteo - GoodAir Pipeline
 
 ## Contexte
 
