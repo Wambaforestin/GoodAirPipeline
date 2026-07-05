@@ -13,6 +13,7 @@ from src.utils.connections import (
     logger,
 )
 
+
 def extract_openweathermap(city, country, api_key):
     """Appelle l'API OpenWeatherMap pour une ville donnée."""
     url = "https://api.openweathermap.org/data/2.5/weather"
@@ -50,11 +51,11 @@ def extract_open_meteo(latitude, longitude, variables):
     """
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
-        "latitude"      : latitude,
-        "longitude"     : longitude,
-        "hourly"        : ",".join(variables),
+        "latitude": latitude,
+        "longitude": longitude,
+        "hourly": ",".join(variables),
         "forecast_hours": 10,  # 10 au lieu de 6 pour absorber le décalage
-        "timezone"      : "Europe/Paris"
+        "timezone": "Europe/Paris",
     }
 
     response = requests.get(url, params=params, timeout=30)
@@ -78,7 +79,7 @@ def save_to_bronze(minio_client, bucket, data, partition_path, filename):
     except S3Error:
         pass
 
-    json_bytes  = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    json_bytes = json.dumps(data, ensure_ascii=False).encode("utf-8")
     object_path = f"{partition_path}{filename}"
 
     minio_client.put_object(
@@ -90,24 +91,25 @@ def save_to_bronze(minio_client, bucket, data, partition_path, filename):
     )
     logger.info(f"Bronze sauvegardé : {bucket}/{object_path}")
 
+
 def run_extract(run_date):
     """Point d'entrée de l extraction. Appelé par le DAG Airflow."""
-    cities        = load_cities_config()
-    om_config     = load_open_meteo_config()
-    minio_client  = get_minio_client()
+    cities = load_cities_config()
+    om_config = load_open_meteo_config()
+    minio_client = get_minio_client()
 
-    owm_key       = os.getenv("OWM_API_KEY")
-    aqicn_key     = os.getenv("AQICN_API_KEY")
+    owm_key = os.getenv("OWM_API_KEY")
+    aqicn_key = os.getenv("AQICN_API_KEY")
     bronze_bucket = os.getenv("MINIO_BUCKET_BRONZE")
-    om_variables  = om_config["variables"]
-    om_cities     = {c["name"]: c for c in om_config["cities"]}
+    om_variables = om_config["variables"]
+    om_cities = {c["name"]: c for c in om_config["cities"]}
 
     for city_config in cities:
-        city    = city_config["city"]
+        city = city_config["city"]
         country = city_config["country"]
         logger.info(f"Extraction pour {city}, {country}...")
 
-        # OpenWeatherMap 
+        # OpenWeatherMap
         owm_data = extract_openweathermap(city, country, owm_key)
         if owm_data:
             partition = get_partition_path("openweathermap", run_date)
@@ -115,7 +117,7 @@ def run_extract(run_date):
                 minio_client, bronze_bucket, owm_data, partition, f"{city}.json"
             )
 
-        # AQICN 
+        # AQICN
         aqicn_data = extract_aqicn(city, aqicn_key)
         if aqicn_data:
             partition = get_partition_path("aqicn", run_date)
@@ -123,7 +125,7 @@ def run_extract(run_date):
                 minio_client, bronze_bucket, aqicn_data, partition, f"{city}.json"
             )
 
-        # Open-Meteo Forecast 
+        # Open-Meteo Forecast
         if city not in om_cities:
             logger.warning(f"Open-Meteo - Ville absente du config : {city}. Skip.")
             continue
@@ -132,7 +134,7 @@ def run_extract(run_date):
         om_data = extract_open_meteo(
             latitude=city_coords["latitude"],
             longitude=city_coords["longitude"],
-            variables=om_variables
+            variables=om_variables,
         )
         if om_data:
             partition = get_partition_path("open-meteo", run_date)

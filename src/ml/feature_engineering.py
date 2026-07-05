@@ -181,7 +181,7 @@ def build_features(run_date, send_warning=None):
     Cela évite tout problème de décalage UTC/Paris.
 
     CHECK MÉTIER : si les features sont incomplètes pour toutes les villes.
-    on retourne True (task verte) + email d'alerte + sauvegarde en rejet.
+    on retourne True (task verte) + email d'alerte + sauvegarde en rejet pour analyse et voir comment on pourrait améliorer le modèle.  
     """
     minio_client = get_minio_client()
     cities = load_cities_config()
@@ -269,7 +269,7 @@ def build_features(run_date, send_warning=None):
         logger.warning("Aucune feature construite pour aucune ville.")
         if send_warning:
             send_warning(
-                subject="[GoodAir] Prédiction impossible — features manquantes",
+                subject="[GoodAir] Prédiction impossible - features manquantes",
                 message=f"Aucune feature disponible pour le run {run_date}. "
                 f"Villes en rejet : {villes_rejet}. "
                 f"Le modèle n'a pas tourné.",
@@ -281,7 +281,7 @@ def build_features(run_date, send_warning=None):
         logger.warning(f"Villes sans prédiction : {villes_rejet}")
         if send_warning:
             send_warning(
-                subject="[GoodAir] Prédiction partielle — features manquantes",
+                subject="[GoodAir] Prédiction partielle - features manquantes",
                 message=f"Features manquantes pour : {villes_rejet}. "
                 f"Prédictions générées pour les autres villes. "
                 f"Données rejetées sauvegardées dans Silver/rejet-ml/.",
