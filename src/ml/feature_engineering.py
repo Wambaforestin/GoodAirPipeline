@@ -90,8 +90,8 @@ def compute_aqi_mean_6h(minio_client, run_date, city_name):
 
 def load_open_meteo_forecast(minio_client, run_date, city_name):
     """
-    Lit les prévisions Open-Meteo depuis Bronze pour H+1 à H+6.
-    Retourne un dict indexé par naive datetime (sans timezone) pour comparaison.
+    Lit les prévisions Open-Meteo depuis Bronze.
+    Retourne un dict indexé par naive datetime (sans timezone).
     """
     partition = get_partition_path("open-meteo", run_date)
     object_path = f"{partition}{city_name}.json"
@@ -102,11 +102,9 @@ def load_open_meteo_forecast(minio_client, run_date, city_name):
     hourly = data["hourly"]
     times = hourly["time"]
 
-    # FIX timezone : timestamps Open-Meteo déjà en Europe/Paris
-    # On garde des naive datetime pour la comparaison avec future_dt
     forecasts = {}
     for i, t in enumerate(times):
-        dt = pd.to_datetime(t)  # naive datetime. sans timezone
+        dt = pd.to_datetime(t)  # naive datetime. déjà en heure Paris
         forecasts[dt] = {
             "wind_direction_10m": hourly["wind_direction_10m"][i],
             "cloud_cover": hourly["cloud_cover"][i],
@@ -119,12 +117,33 @@ def load_open_meteo_forecast(minio_client, run_date, city_name):
     return forecasts
 
 
+def save_rejet(minio_client, run_date, city_name, reason, data):
+    """
+    Sauvegarde les données incomplètes dans Silver/rejet-ml/ pour analyse ultérieure.
+    """
+    try:
+        partition = get_partition_path("rejet-ml", run_date)
+        object_path = f"{partition}{city_name}.json"
+        payload = {"city": city_name, "reason": reason, "data": data}
+        json_bytes = json.dumps(payload, ensure_ascii=False, default=str).encode(
+            "utf-8"
+        )
+
+        minio_client.put_object(
+            "silver",
+            object_path,
+            BytesIO(json_bytes),
+            length=len(json_bytes),
+            content_type="application/json",
+        )
+        logger.info(f"Rejet sauvegardé : silver/{object_path}")
+    except Exception as e:
+        logger.warning(f"Impossible de sauvegarder le rejet pour {city_name} : {e}")
+
+
 def apply_transformations(row):
     """
     Applique les mêmes transformations que 04_data_preparation.ipynb.
-    - Encodage cyclique Heure. Mois. wind_direction
-    - Binarisation precipitation
-    - One-Hot NomVille
     """
     heure = row["heure_future"]
     mois = row["mois"]
@@ -152,18 +171,30 @@ def apply_transformations(row):
     return features
 
 
-def build_features(run_date):
+def build_features(run_date, send_warning=None):
     """
     Point d'entrée principal.
-    Construit les features pour les 6h suivantes pour chaque ville.
-    Écrit le résultat dans Silver/features-ml/.
+    Construit les features pour les 6 prochains créneaux disponibles pour chaque ville.
+
+    FIX TIMEZONE : au lieu de chercher H+1 à H+6 exactement.
+    on prend les 6 premiers timestamps Open-Meteo disponibles après run_date.
+    Cela évite tout problème de décalage UTC/Paris.
+
+    CHECK MÉTIER : si les features sont incomplètes pour toutes les villes.
+    on retourne True (task verte) + email d'alerte + sauvegarde en rejet.
     """
     minio_client = get_minio_client()
     cities = load_cities_config()
 
     df_silver = load_silver_mesures(minio_client, run_date)
 
+    # run_date en naive datetime pour comparaison avec timestamps Open-Meteo
+    run_dt_naive = pd.Timestamp(
+        run_date.year, run_date.month, run_date.day, run_date.hour, 0, 0
+    )
+
     rows = []
+    villes_rejet = []
 
     for city in cities:
         city_name = city["city"]
@@ -172,6 +203,8 @@ def build_features(run_date):
         city_row = df_silver[df_silver["NomVille"] == city_name]
         if city_row.empty:
             logger.warning(f"Pas de données Silver pour {city_name}. Skip.")
+            save_rejet(minio_client, run_date, city_name, "Silver manquant", {})
+            villes_rejet.append(city_name)
             continue
 
         gd = city_row.iloc[0]
@@ -180,29 +213,31 @@ def build_features(run_date):
 
         try:
             forecasts = load_open_meteo_forecast(minio_client, run_date, city_name)
-        except Exception:
-            logger.warning(f"Open-Meteo indisponible pour {city_name}. Skip.")
+        except Exception as e:
+            logger.warning(f"Open-Meteo indisponible pour {city_name} : {e}. Skip.")
+            save_rejet(minio_client, run_date, city_name, "Open-Meteo indisponible", {})
+            villes_rejet.append(city_name)
             continue
 
-        for h in range(0, 7):
-            future_date = run_date + pd.Timedelta(hours=h)
+        # FIX TIMEZONE : prendre les 6 premiers timestamps futurs disponibles
+        future_slots = sorted([dt for dt in forecasts.keys() if dt > run_dt_naive])[:6]
 
-            # FIX timezone : naive datetime pour correspondre aux timestamps Open-Meteo
-            future_dt = pd.Timestamp(
-                future_date.year,
-                future_date.month,
-                future_date.day,
-                future_date.hour,
-                0,
-                0,
+        if not future_slots:
+            logger.warning(f"Aucun créneau futur disponible pour {city_name}. Skip.")
+            save_rejet(
+                minio_client,
+                run_date,
+                city_name,
+                "Aucun créneau futur Open-Meteo",
+                {
+                    "run_dt_naive": str(run_dt_naive),
+                    "forecasts_keys": [str(k) for k in forecasts.keys()],
+                },
             )
+            villes_rejet.append(city_name)
+            continue
 
-            if future_dt not in forecasts:
-                logger.warning(
-                    f"Prévision manquante pour {city_name} à {future_dt}. Skip."
-                )
-                continue
-
+        for future_dt in future_slots:
             forecast = forecasts[future_dt]
 
             row = {
@@ -229,15 +264,43 @@ def build_features(run_date):
 
             rows.append(features)
 
+    # CHECK MÉTIER : aucune feature construite
     if not rows:
-        logger.error("Aucune feature construite. Abandon.")
-        return False
+        logger.warning("Aucune feature construite pour aucune ville.")
+        if send_warning:
+            send_warning(
+                subject="[GoodAir] Prédiction impossible — features manquantes",
+                message=f"Aucune feature disponible pour le run {run_date}. "
+                f"Villes en rejet : {villes_rejet}. "
+                f"Le modèle n'a pas tourné.",
+            )
+        return True  # Task verte. pas d erreur
+
+    # Si certaines villes sont en rejet mais pas toutes
+    if villes_rejet:
+        logger.warning(f"Villes sans prédiction : {villes_rejet}")
+        if send_warning:
+            send_warning(
+                subject="[GoodAir] Prédiction partielle — features manquantes",
+                message=f"Features manquantes pour : {villes_rejet}. "
+                f"Prédictions générées pour les autres villes. "
+                f"Données rejetées sauvegardées dans Silver/rejet-ml/.",
+            )
 
     df_features = pd.DataFrame(rows)
 
+    # Vérification du contrat de données
     missing = [f for f in FEATURES if f not in df_features.columns]
-    assert not missing, f"Features manquantes : {missing}"
+    if missing:
+        logger.warning(f"Features manquantes dans le dataset : {missing}")
+        if send_warning:
+            send_warning(
+                subject="[GoodAir] Features incomplètes",
+                message=f"Features manquantes : {missing}. Le modèle n'a pas tourné.",
+            )
+        return True  # Task verte. pas d erreur
 
+    # Écriture dans Silver/features-ml/
     partition = get_partition_path("features-ml", run_date)
     object_path = f"{partition}features.parquet"
     buffer = BytesIO()

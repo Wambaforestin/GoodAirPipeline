@@ -148,6 +148,45 @@ def send_aqi_alert(city, aqi_predit, date_heure_predite):
     )
 
 
+def send_ml_warning(subject, message):
+    """Alerte email informatif pour les problèmes ML. Task reste verte."""
+    send_email_smtp(
+        subject=subject,
+        html_content=f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+            <div style="max-width: 600px; margin: auto; background: white;
+                        border-radius: 8px; overflow: hidden;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+
+                <div style="background-color: #f39c12; padding: 20px;">
+                    <h2 style="color: white; margin: 0;">
+                        Avertissement Pipeline GoodAir
+                    </h2>
+                </div>
+
+                <div style="padding: 24px;">
+                    <div style="padding: 12px; background-color: #fef9e7;
+                                border-left: 4px solid #f39c12; border-radius: 4px;">
+                        <p style="margin: 0; color: #7d6608;">{message}</p>
+                    </div>
+                    <p style="margin-top: 16px; color: #555; font-size: 13px;">
+                        Le pipeline ETL continue de fonctionner normalement.
+                        Seule la prédiction ML est impactée.
+                    </p>
+                </div>
+
+                <div style="padding: 16px; background-color: #f4f4f4;
+                            text-align: center; font-size: 12px; color: #999;">
+                    Le Pipeline GoodAir de TotalGreen (EPSI MSPR) vous informe.
+                </div>
+            </div>
+        </body>
+        </html>
+        """,
+    )
+
+
 default_args = {
     "owner": "goodair",
     "retries": 2,
@@ -166,7 +205,6 @@ with DAG(
 ) as dag:
 
     def task_extract(**kwargs):
-        # raise ValueError("Test alerte email — erreur volontaire")
         run_date = to_paris_time(kwargs["logical_date"])
         run_extract(run_date)
 
@@ -183,9 +221,7 @@ with DAG(
 
     def task_build_features(**kwargs):
         run_date = to_paris_time(kwargs["logical_date"])
-        success = build_features(run_date)
-        if not success:
-            raise ValueError("Feature engineering échoué : aucune feature construite.")
+        build_features(run_date, send_warning=send_ml_warning)
 
     def task_predict(**kwargs):
         run_date = to_paris_time(kwargs["logical_date"])
