@@ -114,7 +114,7 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 5 étapes :
 ```text
 GoodAirPipeline/
 ├── config/
-│   ├── cities_config.json
+│   ├── cities_config.json              # config des villes cibles (nom et pays)
 │   ├── pipeline_config.yaml
 │   └── open_meteo_config.json          # nouveau - config pour l'API Open-Meteo
 │
