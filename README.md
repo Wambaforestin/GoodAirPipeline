@@ -99,7 +99,9 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 5 étapes :
 
 ![Airflow Logs](images/resultats_projet/logs_airflow.png)
 
-![Métriques d'exécution Airflow](images/resultats_projet/MetricsAirflow.png)
+## Alerte email en cas d'échec du pipeline
+
+![Métriques d'exécution Airflow](images/resultats_projet/notif_email.png)
 
 ## Retry automatique en cas d'échec
 

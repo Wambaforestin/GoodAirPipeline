@@ -1,8 +1,6 @@
 import pytest
 import pandas as pd
-import numpy as np
-from unittest.mock import patch, MagicMock, mock_open
-from io import BytesIO
+from unittest.mock import patch, MagicMock
 from src.transform.transform_silver import (
     flatten_openweathermap,
     flatten_aqicn,

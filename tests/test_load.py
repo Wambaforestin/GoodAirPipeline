@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock
 from io import BytesIO
 import pyarrow.parquet as pq
 from src.load.load_gold import (
