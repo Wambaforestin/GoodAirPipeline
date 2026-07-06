@@ -4,7 +4,7 @@
 
 Le Data Warehouse GoodAirDW collecte des données météorologiques et de qualité de l'air pour les principales villes de France. Les données sont alimentées toutes les heures par un pipeline ETL orchestré par Apache Airflow.
 
-**Important:** Pour le moment, la table du data catalogue est maintenue manuellement et n'est pas encore normalisée pour générer automatiquement la documentation. Dans les prochaines versions, nous prévoyons de normaliser les métadonnées et créer une application web au-dessus pour que les chercheurs et analystes puissent explorer les tables, colonnes, types et descriptions.
+**Important:** Pour le moment, la table du data catalogue est maintenue manuellement et n'est pas encore normalisée pour générer automatiquement la documentation et les redondances. Dans les prochaines versions, nous prévoyons de normaliser les métadonnées et créer une application web au-dessus pour que les chercheurs et analystes puissent explorer les tables, colonnes, types et descriptions.
 
 **Sources :**
 
