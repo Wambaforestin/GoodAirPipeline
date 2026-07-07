@@ -26,7 +26,7 @@ Les chercheurs ne vont jamais lire des fichiers Parquet dans MinIO. Ils se conne
 
 Le Data Warehouse utilise un schéma en étoile (modèle Kimball) avec une table de faits centrale et deux tables de dimensions :
 
-```
+```bash
             DimTemps
                │
                │ FK (IDTemps)

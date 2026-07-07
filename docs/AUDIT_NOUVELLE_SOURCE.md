@@ -146,10 +146,10 @@ Exemple concret:
 
 ```bash
 le naive datetime   : 2026-07-05 18:00:00
-                   → "il est 18h" mais on ne sait pas si c'est Paris. Londres ou New York
+                   -> "il est 18h" mais on ne sait pas si c'est Paris. Londres ou New York
 
 le aware datetime   : 2026-07-05 18:00:00+02:00
-                   → "il est 18h à Paris (UTC+2)"
+                   -> "il est 18h à Paris (UTC+2)"
 ```
 
 Dans notre cas. Open-Meteo retourne "2026-07-05T18:00" sans indication de fuseau. C'est donc un naive datetime. On sait qu'il est en heure Paris car on a passé timezone=Europe/Paris dans l'appel API. mais le timestamp lui-même ne le dit pas explicitement.
