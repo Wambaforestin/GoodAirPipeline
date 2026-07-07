@@ -51,15 +51,15 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 5 étapes :
 >
 > Voici les principaux défis techniques rencontrés lors du développement du pipeline, et les solutions mises en place pour les surmonter :
 >
-> - **Airflow 3 : "Invalid auth token"** — Bug connu ([GitHub #59373](https://github.com/apache/airflow/issues/59373)). Résolu en fixant `AIRFLOW__API_AUTH__JWT_SECRET` dans le docker-compose pour éviter des secrets JWT différents à chaque démarrage.
-> - **NomVille incohérent entre APIs** — OpenWeatherMap renvoie "Paris", AQICN "Paris, Champs-Élysées". Solution : utiliser le nom du fichier config comme source unique de vérité.
-> - **Pannes partielles d'API** — Certaines stations AQICN ne mesurent pas tous les polluants. Correction : ne marquer `FAILED` que si aucune métrique air n'est remplie.
-> - **SQL Server consomme toute la RAM Docker** — Limité via `MSSQL_MEMORY_LIMIT_MB: 1024` + `mem_limit: 2g` dans le docker-compose.
-> - **Décalage horaire IDTemps vs heure locale** — Airflow travaille en UTC même avec `Europe/Paris`. Ajout d'une conversion `to_paris_time()` dans le DAG et adaptation du SQL (`GETDATE() AT TIME ZONE ...`).
-> - **Données dupliquées après redémarrage** — Deux runs simultanés peuvent collecter les mêmes données temps réel avec des IDTemps différents. Limitation liée aux APIs temps réel et à l'infra locale, pas de violation de clé.
-> - **Timezone Open-Meteo** — Les timestamps retournés sont déjà en heure Paris mais Python les traitait comme UTC, créant un décalage de 2h. Résolu en conservant des `naive datetime` sans conversion.
-> - **Alertes email Airflow 3** — `SmtpNotifier` du provider Airflow forçait SSL (port 465) au lieu de STARTTLS (port 587). Résolu en utilisant `smtplib` natif Python avec `starttls()` explicite.
-> - **FK AlertesPredites sur IDTemps** — Les heures futures n'existent pas encore dans DimTemps. Résolu en supprimant la FK sur IDTemps et en utilisant `DateHeurePredite` directement en DATETIME2.
+> - **Airflow 3 : "Invalid auth token"** : Bug connu ([GitHub #59373](https://github.com/apache/airflow/issues/59373)). Résolu en fixant `AIRFLOW__API_AUTH__JWT_SECRET` dans le docker-compose pour éviter des secrets JWT différents à chaque démarrage.
+> - **NomVille incohérent entre APIs** : OpenWeatherMap renvoie "Paris", AQICN "Paris, Champs-Élysées". Solution : utiliser le nom du fichier config comme source unique de vérité.
+> - **Pannes partielles d'API** : Certaines stations AQICN ne mesurent pas tous les polluants. Correction : ne marquer `FAILED` que si aucune métrique air n'est remplie.
+> - **SQL Server consomme toute la RAM Docker** : Limité via `MSSQL_MEMORY_LIMIT_MB: 1024` + `mem_limit: 2g` dans le docker-compose.
+> - **Décalage horaire IDTemps vs heure locale** : Airflow travaille en UTC même avec `Europe/Paris`. Ajout d'une conversion `to_paris_time()` dans le DAG et adaptation du SQL (`GETDATE() AT TIME ZONE ...`).
+> - **Données dupliquées après redémarrage** : Deux runs simultanés peuvent collecter les mêmes données temps réel avec des IDTemps différents. Limitation liée aux APIs temps réel et à l'infra locale, pas de violation de clé.
+> - **Timezone Open-Meteo** : Les timestamps retournés sont déjà en heure Paris mais Python les traitait comme UTC, créant un décalage de 2h. Résolu en conservant des `naive datetime` sans conversion.
+> - **Alertes email Airflow 3** : `SmtpNotifier` du provider Airflow forçait SSL (port 465) au lieu de STARTTLS (port 587). Résolu en utilisant `smtplib` natif Python avec `starttls()` explicite.
+> - **FK AlertesPredites sur IDTemps** : Les heures futures n'existent pas encore dans DimTemps. Résolu en supprimant la FK sur IDTemps et en utilisant `DateHeurePredite` directement en DATETIME2.
 
 ---
 
