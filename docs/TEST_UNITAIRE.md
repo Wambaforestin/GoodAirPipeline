@@ -48,10 +48,12 @@ uv run pytest tests/ -v
 
 ---
 
-## Couverture des tests
+## Pourquoi faire des tests unitaires ?
 
-| Couche    | Couverture | Scénarios clés testés                                                                      |
-| --------- | ---------- | ------------------------------------------------------------------------------------------ |
-| Extract   | Élevée     | Succès API, échec API, ville introuvable, sauvegarde dans MinIO                            |
-| Transform | Élevée     | Aplatissement des données, règles de nettoyage, détection des lignes mortes, déduplication |
-| Load      | Élevée     | Lecture Parquet, tables de transit, opérations MERGE, validation des données               |
+Les tests unitaires permettent de :
+
+- **Valider chaque fonction individuellement** avant l'intégration
+- **Détecter les bugs tôt** (moins coûteux à corriger en développement qu'en production)
+- **Garantir la stabilité** du code lors des mises à jour futures
+- **Documenter le comportement attendu** de chaque composant
+- **Accélérer le développement** en évitant les régressions
