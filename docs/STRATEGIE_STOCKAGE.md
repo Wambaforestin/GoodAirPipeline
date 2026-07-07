@@ -8,7 +8,7 @@ Ce document décrit comment les données sont organisées, partitionnées et sé
 
 Le Data Lake est segmenté en deux zones, matérialisées par deux buckets MinIO distincts. Chaque zone a un rôle précis et un format de données adapté.
 
-```
+```bash
 MinIO
 ├── bronze/          → Données brutes (JSON)
 └── silver/          → Données nettoyées (Parquet)
@@ -47,13 +47,33 @@ L'architecture Médaillon (Bronze / Silver / Gold) popularisée par Databricks n
 
 ---
 
+Suite à l'ajout de la phase ML, une nouvelle sous-zone est créée dans Silver pour stocker les features du modèle de prédiction et les données rejetées.
+
+### Silver/features-ml/ - Features du modèle ML
+
+Créée en phase ML. Cette zone contient les features prêtes à l'emploi pour le modèle de prédiction. générées par `feature_engineering.py` à chaque run horaire.
+
+**Format :** Parquet
+**Partitionnement :** `features-ml/year=/month=/day=/hour=/features.parquet`
+**Contenu :** Les 25 features transformées (encodages sin/cos. One-Hot. AQI_mean_6h) pour les 6 prochains créneaux horaires de chaque ville. soit 66 lignes maximum par run.
+**Durée de vie :** 48h. écrasé à chaque run via le partitionnement horaire.
+
+### Silver/rejet/ - Données incomplètes
+
+Créée en phase ML. Cette zone capture les données qui n'ont pas pu être traitées par le feature engineering. pour analyse ultérieure et amélioration du modèle.
+
+**Format :** JSON
+**Partitionnement :** `rejet/year=/month=/day=/hour=/{ville}.json`
+**Contenu :** La ville concernée. la raison du rejet (Silver manquant. Open-Meteo indisponible. aucun créneau futur disponible) et les données disponibles au moment du rejet.
+**Usage :** Permet d'identifier les villes et les heures problématiques pour améliorer la robustesse du pipeline et enrichir le dataset d'entraînement futur.
+
 ## Structure de dossiers et clé de partition
 
 ### Le partitionnement par date
 
 Chaque fichier est stocké dans une hiérarchie de dossiers basée sur la date et l'heure du run :
 
-```
+```bash
 bronze/
 ├── openweathermap/
 │   └── year=2026/
@@ -133,7 +153,7 @@ def get_partition_path(api_name, run_date):
 
 Exemple : pour un run le 30 mars 2026 à 15h, l'appel `get_partition_path("openweathermap", run_date)` produit :
 
-```
+```bash
 openweathermap/year=2026/month=03/day=30/hour=15/
 ```
 
@@ -149,7 +169,7 @@ Chaque fichier JSON est nommé par la ville : `Paris.json`, `Lyon.json`, etc. Ce
 
 **Pourquoi le nom de ville comme nom de fichier :** c'est le deuxième niveau de granularité après l'heure. Dans le dossier `hour=15/`, on a un fichier par ville. Pour relire les données de Paris à 15h, le chemin complet est :
 
-```
+```bash
 bronze/openweathermap/year=2026/month=03/day=30/hour=15/Paris.json
 ```
 
@@ -199,7 +219,7 @@ Si on passait à 500 villes avec des données toutes les 15 minutes (au lieu d'1
 
 L'accès à MinIO est protégé par des credentials définis dans le `.env` :
 
-```
+```bash
 MINIO_ROOT_USER=admin
 MINIO_ROOT_PASSWORD=GoodAir***
 ```

@@ -132,7 +132,7 @@ Le code Python n'a jamais besoin de connaître l'IDLieu. Il travaille avec des n
 
 ## Les tables en détail
 
-### Gold.DimLieux — la dimension géographique
+### Gold.DimLieux - la dimension géographique
 
 ```sql
 CREATE TABLE Gold.DimLieux (
@@ -149,7 +149,7 @@ CREATE TABLE Gold.DimLieux (
 
 **Pourquoi Latitude et Longitude sont nullable :** si OpenWeatherMap ne renvoie pas les coordonnées pour une ville, on ne rejette pas la ligne. Les mesures (température, pollution) restent valides sans coordonnées GPS. Les graphiques temporels fonctionnent, seule la carte serait impactée.
 
-### Gold.DimTemps — la dimension temporelle
+### Gold.DimTemps - la dimension temporelle
 
 ```sql
 CREATE TABLE Gold.DimTemps (
@@ -167,7 +167,7 @@ CREATE TABLE Gold.DimTemps (
 
 **Pourquoi IDTemps en BIGINT et pas en DATETIME :** l'IDTemps `2026033015` est un entier lisible par un humain (30 mars 2026 à 15h). C'est aussi plus performant comme clé de jointure qu'un DATETIME. Et c'est déterministe : pour une date donnée, le calcul `int(run_date.strftime("%Y%m%d%H"))` produit toujours la même valeur.
 
-### Gold.FactMesures — la table de faits
+### Gold.FactMesures - la table de faits
 
 ```sql
 CREATE TABLE Gold.FactMesures (
@@ -321,7 +321,7 @@ La consistance garantit que les données restent cohérentes entre elles à tout
 
 Le pipeline suit un flux unidirectionnel strict : Bronze → Silver → Gold. Chaque couche ne lit que la couche précédente, jamais l'inverse. Il n'y a pas de mise à jour de Bronze depuis Silver, ni de retour de Gold vers Staging.
 
-```
+```bash
 Bronze (JSON brut) → Silver (Parquet nettoyé) → Staging (tables temp) → Gold (star schema)
          ↓                    ↓                       ↓                      ↓
      Overwrite            Overwrite               TRUNCATE               MERGE
@@ -333,7 +333,7 @@ Bronze (JSON brut) → Silver (Parquet nettoyé) → Staging (tables temp) → G
 
 L'ordre d'exécution du MERGE est critique. Les dimensions sont **toujours** alimentées avant les faits :
 
-```
+```bash
 1. INSERT DimLieux (si nouvelles villes)
 2. INSERT DimTemps (si nouvelle heure)
 3. MERGE FactMesures (les FK sont satisfaites)
@@ -415,7 +415,7 @@ Les dates utilisent `GETDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Romance Standard
 
 L'IDBatch correspond au `run_id` d'Airflow. Il encode le type de run et l'heure :
 
-```
+```bash
 scheduled__2026-03-30T14:00:00+00:00   → run automatique horaire
 manual__2026-03-30T15:26:52+00:00      → run déclenché manuellement
 ```
@@ -528,6 +528,33 @@ engine = create_engine(
 ```
 
 Cette option envoie toutes les lignes en un seul aller-retour réseau au lieu d'une ligne à la fois. Pour 11 lignes la différence est négligeable, mais pour 500 villes ce serait significatif.
+
+---
+
+### Gold.AlertesPredites - Prédictions ML
+
+Table créée en phase ML. Stocke les prédictions de l'indice de qualité de l'air
+générées par le modèle Random Forest à chaque run horaire.
+
+**Grain :** 1 ligne = 1 ville × 1 heure future prédite
+**Volume :** 66 lignes maximum par run (11 villes × 6 heures)
+**Alimentation :** `predict.py` via MERGE idempotent
+
+- **FK sur IDLieu uniquement**
+
+La table référence `Gold.DimLieux` via une clé étrangère sur IDLieu. Les villes existent déjà dans DimLieux donc cette contrainte ne pose aucun problème.
+
+- **Pas de FK sur IDTemps**
+
+Les heures futures prédites n'existent pas encore dans `Gold.DimTemps` au moment de l'insertion. DimTemps ne contient que les heures déjà collectées par le pipeline ETL. Ajouter une FK sur IDTemps aurait bloqué toutes les insertions avec une erreur d'intégrité référentielle. La décision est de stocker directement `DateHeurePredite` en DATETIME2 sans référence à DimTemps.
+
+- **MERGE idempotent sur (IDLieu. DateHeurePredite)**
+
+À chaque run. les prédictions existantes pour les mêmes créneaux sont mises à jour avec les nouvelles conditions météo. Les prédictions les plus récentes sont toujours les plus fiables car elles utilisent les dernières données disponibles.
+
+- **Pas de colonne IDTemps**
+
+IDTemps était redondant avec DateHeurePredite et introduisait une répétition dunom de la ville en texte. La clé primaire `(IDLieu. DateHeurePredite)` est plus propre et plus cohérente avec le modèle en étoile existant.
 
 ---
 
