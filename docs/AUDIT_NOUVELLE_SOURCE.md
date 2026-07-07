@@ -144,7 +144,7 @@ L'API Forecast étant gratuite et sans quota documenté. elle ne présente aucun
 Un `naive datetime` c'est une date et heure qui ne sait pas dans quel fuseau horaire elle se trouve.
 Exemple concret:
 
-```bash
+```text
 le naive datetime   : 2026-07-05 18:00:00
                    -> "il est 18h" mais on ne sait pas si c'est Paris. Londres ou New York
 
