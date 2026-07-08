@@ -65,7 +65,7 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 5 étapes :
 
 ## Architecture
 
-![Architecture MVP Good Air](images/ArchirectureMVPGoodAirV3.png)
+![Architecture MVP Good Air](images/ArchirectureMVPGoodAirV_3.png)
 
 ## Schéma en étoile
 
