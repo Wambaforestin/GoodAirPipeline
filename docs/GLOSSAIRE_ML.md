@@ -305,13 +305,3 @@ Le Continuous Training est la pratique de ré-entraîner régulièrement le mod�
 **Événements exceptionnels :** Le modèle ne peut pas prédire un pic de pollution lié à un événement imprévu comme un incendie ou un épisode de pollution transfrontalière, car ces événements ne sont pas capturés par les variables météo.
 
 **Saisonnalité limitée :** Le modèle est entraîné sur le printemps et le début de l'été. Les prédictions en hiver ou en automne seront moins fiables jusqu'au prochain ré-entraînement.
-
----
-
-### Perspectives d'amélioration
-
-**Continuous Training automatique :** Automatiser le ré-entraînement via un DAG Airflow trimestriel plutôt que de le faire manuellement.
-
-**Extension de l'horizon de prédiction :** Passer de 6 heures à 24 heures en construisant un modèle en deux étapes où le modèle prédit H+1 et sa prédiction sert d'input pour prédire H+2, et ainsi de suite. Cette approche accumule les erreurs mais reste utile pour dégager des tendances.
-
-**Ajout de nouvelles sources :** Intégrer les données de trafic routier, les données industrielles ou les prévisions Copernicus pour enrichir les features et améliorer la détection des pics de pollution.

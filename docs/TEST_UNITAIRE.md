@@ -2,6 +2,8 @@
 
 Ce répertoire contient les **tests unitaires** pour le pipeline Good Air (Extraction -> Transformation -> Chargement).
 
+**Point important :** Ces tests seront bientot automatisés dans le pipeline CI avec GitHub Actions, mais pour l'instant, ils doivent être exécutés manuellement.
+
 ---
 
 ## Ce qui est testé
