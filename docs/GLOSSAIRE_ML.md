@@ -273,35 +273,3 @@ La régression linéaire suppose qu'il existe une relation directe et proportion
 ### Modèles de séries temporelles - Pourquoi on ne les a pas choisis
 
 ARIMA, SARIMA et Prophet prédisent une variable à partir de ses propres valeurs passées uniquement, sans pouvoir exploiter naturellement des variables complémentaires comme la météo. De plus, ils exigent une série temporelle continue sans trous, ce qui est incompatible avec notre infrastructure locale qui génère des discontinuités régulières.
-
----
-
-### Random Forest vs XGBoost
-
-Random Forest construit plusieurs centaines d'arbres de décision indépendants en parallèle et fait la moyenne de leurs prédictions. Cette approche par consensus est naturellement robuste sur des petits datasets avec des trous temporels. XGBoost construit les arbres de manière séquentielle, chaque arbre corrigeant les erreurs du précédent : très puissant sur de grands datasets mais moins efficace quand les données sont limitées. Sur notre dataset de 3 mois, Random Forest (R²=0.87) surpasse XGBoost (R²=0.81). Sur un historique de 2 ans avec des données continues, XGBoost aurait probablement été plus performant.
-
----
-
-## Stratégies et compromis
-
-### Biais de saisonnalité
-
-Notre dataset couvre uniquement mars à juillet 2026, principalement le printemps et le début de l'été. Le modèle a donc appris les patterns de cette période et ses prédictions en hiver ou en automne seront moins fiables car il n'a jamais vu des données hivernales. C'est un biais assumé et documenté : le Continuous Training trimestriel permettra progressivement de couvrir toutes les saisons.
-
----
-
-### Continuous Training
-
-Le Continuous Training est la pratique de ré-entraîner régulièrement le modèle sur de nouvelles données pour qu'il reste à jour. Dans notre projet, on prévoit un ré-entraînement manuel tous les 3 mois via les notebooks. À chaque ré-entraînement, le modèle verra plus de données, plus de saisons et plus d'épisodes de pollution, ce qui améliorera progressivement ses prédictions.
-
----
-
-### Points de vigilance
-
-**Horizon de prédiction de 6 heures :** Notre modèle prédit l'évolution de l'indice de qualité de l'air à 6 heures en se basant sur son historique récent et les conditions météo. Il ne recalcule pas l'indice depuis les polluants bruts, et les prédictions au-delà de 6 heures nécessiteraient une architecture différente.
-
-**Dépendance à AQI\_mean\_6h :** La feature la plus importante du modèle est l'historique récent de l'indice. Si le pipeline a des trous temporels importants, cette feature sera moins précise et les prédictions le seront aussi.
-
-**Événements exceptionnels :** Le modèle ne peut pas prédire un pic de pollution lié à un événement imprévu comme un incendie ou un épisode de pollution transfrontalière, car ces événements ne sont pas capturés par les variables météo.
-
-**Saisonnalité limitée :** Le modèle est entraîné sur le printemps et le début de l'été. Les prédictions en hiver ou en automne seront moins fiables jusqu'au prochain ré-entraînement.

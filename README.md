@@ -342,7 +342,7 @@ docker compose logs -f nom_service
 ## Documentation complémentaire
 
 - [Audit des sources de données](docs/AUDIT_SOURCES.md) - analyse détaillée des APIs OWM et AQICN
-- [Audit de la nouvelle source Open-Meteo](docs/AUDIT_OPEN_METEO.md) - découverte, analyse du payload et mapping des variables
+- [Audit de la nouvelle source Open-Meteo](docs/AUDIT_NOUVELLE_SOURCE.md) - découverte, analyse du payload et mapping des variables
 - [Stratégie de stockage dans MinIO](docs/STRATEGIE_STOCKAGE.md) - organisation, partitionnement, et sécurité des données dans MinIO.
 - [Stratégie Data Warehouse](docs/STRATEGIE_DATAWAREHOUSE.md) - modélisation, schémas, MERGE et sécurité SQL Server.
 - [Data Catalog](docs/DATA_CATALOG.md) - documentation des tables et colonnes.
@@ -350,3 +350,4 @@ docker compose logs -f nom_service
 - [Gestion du fuseau horaire](docs/CHANGEMENT_FUSEAU_HORAIRE.md) - explication détaillée du choix et de l'implémentation du fuseau horaire.
 - [Gestion de la qualité des données](docs/QUALITE_DONNEES.md) - vérifications appliquées à chaque étape
 - [Benchmark des outils du projet](docs/BENCHMARK_OUTILS.md) - comparaison des différentes technologies envisagées pour chaque composant du pipeline, et justification des choix finaux.
+- [Le modèle de prédiction AQI](docs/EVALUATION_MODELE.md) - analyse des performances du modèle, limites et stratégies d'amélioration.
