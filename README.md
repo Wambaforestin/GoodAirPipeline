@@ -87,6 +87,10 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 5 étapes :
 
 ![Alertes Prédites](images/resultats_projet/alertes_predites.png)
 
+## Visualisation des données dans Metabase
+
+![Metabase Dashboard](images/resultats_projet/dashboard_onglet1_multi_villes.png)
+
 ## Feature importance du modèle Random Forest
 
 ![Feature Importance](rapports_ml/feature_importance.png)
@@ -188,11 +192,12 @@ docker compose ps    # Tout doit être "healthy"
 
 ## Accès aux services
 
-| Service           | URL                   | Identifiants             |
-| ----------------- | --------------------- | ------------------------ |
-| Airflow           | http://localhost:8081 | (voir .env.example)      |
-| MinIO Console     | http://localhost:9001 | (voir .env.example)      |
-| SQL Server (SSMS) | localhost,1433        | sa / (voir .env.example) |
+| Service           | URL                   | Identifiants                   |
+| ----------------- | --------------------- | ------------------------------ |
+| Airflow           | http://localhost:8081 | (voir .env.example)            |
+| MinIO Console     | http://localhost:9001 | (voir .env.example)            |
+| Metabase          | http://localhost:3001 | à définir au premier lancement |
+| SQL Server (SSMS) | localhost,1433        | sa / (voir .env.example)       |
 
 ---
 
@@ -330,10 +335,10 @@ docker compose logs -f nom_service
 - [x] Alertes email en cas d'échec du pipeline
 - [x] Prédiction AQI (la qualité de l'air) à 6h via Random Forest
 - [x] Couche rejet pour les données incomplètes (pour le pipeline et pour le ML)
+- [x]  Connexion Power BI / Tableau / Metabase au Data Warehouse: pour créer des KPIs et dashboards de suivi de la qualité de l'air pour les chercheurs
 - [ ] Tests unitaires (Pytest) et un pipe de CI (GitHub Actions) pour automatiser les tests à chaque push
 - [ ] Création d'utilisateurs Airflow avec rôles distincts
 - [ ] Migration du pilotage par config JSON vers table SQL Ref.VillesCibles (pour permettre aux chercheurs d'ajouter/supprimer des villes sans toucher au code)
-- [ ]  Connexion Power BI / Tableau / Metabase au Data Warehouse: pour créer des KPIs et dashboards de suivi de la qualité de l'air pour les chercheurs
 - [ ] Continuous Training du modèle automatiquement/manuellement tous les 3 mois
 - [ ] Horizon de prédiction étendu à 24h
 
@@ -348,6 +353,7 @@ docker compose logs -f nom_service
 - [Data Catalog](docs/DATA_CATALOG.md) - documentation des tables et colonnes.
 - [Principes de développement](docs/PRINCIPE_DE_DEVELOPPEMENT_PIPELINE.md) - principes d'ingénierie, patterns et pratiques appliqués
 - [Gestion du fuseau horaire](docs/CHANGEMENT_FUSEAU_HORAIRE.md) - explication détaillée du choix et de l'implémentation du fuseau horaire.
+- [Visualisation des données dans Metabase](docs/VISUALISATION_METABASE.md) - présentation des dashboards et KPIs pour les chercheurs
 - [Gestion de la qualité des données](docs/QUALITE_DONNEES.md) - vérifications appliquées à chaque étape
 - [Benchmark des outils du projet](docs/BENCHMARK_OUTILS.md) - comparaison des différentes technologies envisagées pour chaque composant du pipeline, et justification des choix finaux.
 - [Le modèle de prédiction AQI](docs/EVALUATION_MODELE.md) - analyse des performances du modèle, limites et stratégies d'amélioration.
