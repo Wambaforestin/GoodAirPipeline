@@ -53,9 +53,13 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 5 étapes :
 
 ![Schéma en étoile](images/SchemaEnEtoileGoodAir.png)
 
-## Les taches dans Airflow
+## Les taches dans Airflow pour l'ETL
 
 ![DAG Airflow](images/resultats_projet/ui_airflow_dag.png)
+
+## Les taches dans Airflow pour la prédiction ML
+
+![Retry Airflow](images/resultats_projet/airflow_retry_check.png)
 
 ## Data Lake MinIO zones Bronze et Silver
 
@@ -88,10 +92,6 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 5 étapes :
 ## Alerte email en cas d'échec du pipeline
 
 ![Métriques d'exécution Airflow](images/resultats_projet/notif_email.png)
-
-## Retry automatique en cas d'échec
-
-![Retry Airflow](images/resultats_projet/airflow_retry_check.png)
 
 ---
 
