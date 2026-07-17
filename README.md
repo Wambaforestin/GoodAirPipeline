@@ -2,7 +2,7 @@
 
 ## Le problème
 
-Le laboratoire GoodAir (TotalGreen) étudie la qualité de l'air en France. Ses chercheurs ont besoin de données météo et pollution fiables, historisées heure par heure, pour leurs analyses. Aujourd'hui, ces données existent dans des APIs publiques (OpenWeatherMap, AQICN) mais elles sont temps réel uniquement : si personne ne les capture, elles sont perdues.
+Le laboratoire GoodAir (TotalGreen) étudie la qualité de l'air en France. Ses chercheurs ont besoin de données météo et pollution fiables, historisées par heure, pour leurs analyses. Aujourd'hui, ces données existent dans des APIs publiques (OpenWeatherMap, AQICN) mais elles sont temps réel uniquement : si personne ne les capture, elles sont perdues.
 
 Ce pipeline résout ce problème : il collecte automatiquement les données chaque heure, les nettoie, les stocke dans un Data Warehouse prêt pour les chercheurs, et prédit la qualité de l'air pour les 6 prochaines heures grâce à un modèle de machine learning.
 
@@ -49,19 +49,19 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 5 étapes :
 
 ![Architecture MVP Good Air](images/ArchirectureMVPGoodAirV_3.png)
 
-## Schéma en étoile
+## Schéma en étoile de l'entrepôt de données
 
 ![Schéma en étoile](images/SchemaEnEtoileGoodAir.png)
 
-## Les taches dans Airflow pour l'ETL
+## Les taches dans airflow pour l'ETL
 
 ![DAG Airflow](images/resultats_projet/ui_airflow_dag.png)
 
-## Les taches dans Airflow pour la prédiction ML
+## Les taches dans airflow pour le ML en plus de l'ETL
 
 ![Retry Airflow](images/resultats_projet/airflow_retry_check.png)
 
-## Data Lake MinIO zones Bronze et Silver
+## Data Lake MinIO avec les zones Bronze et Silver
 
 ![MinIO Browser](images/resultats_projet/datalake.png)
 
@@ -126,7 +126,7 @@ GoodAirPipeline/
 │
 ├── src/
 │   ├── extract/
-│   │   └── extract_apis.py             # modifié — ajout Open-Meteo de l'appel API et du stockage dans le Data Lake
+│   │   └── extract_apis.py             # ajout de l'appel API de Open-Meteo et du stockage dans le Data Lake
 │   ├── transform/
 │   │   └── transform_silver.py         # inchangé
 │   ├── load/
