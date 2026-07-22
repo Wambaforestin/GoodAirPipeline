@@ -24,6 +24,8 @@ x-airflow-common:
     AIRFLOW__SMTP__SMTP_MAIL_FROM: "wambadata123@gmail.com"
     AIRFLOW__SMTP__SMTP_SSL: "False"
     AIRFLOW__SMTP__SMTP_STARTTLS: "True"
+    SMTP_PASSWORD: ${SMTP_PASSWORD}
+    ALERT_EMAILS: ${ALERT_EMAILS}
     # Override pour le réseau Docker (dans .env c'est localhost pour SSMS)
     MSSQL_HOST: sqlserver
     PYTHONPATH: /opt/airflow

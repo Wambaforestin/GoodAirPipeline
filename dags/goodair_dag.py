@@ -205,6 +205,7 @@ with DAG(
 ) as dag:
 
     def task_extract(**kwargs):
+        # raise ValueError("Test alerte email: erreur volontaire pour tester l'alerte email.")
         run_date = to_paris_time(kwargs["logical_date"])
         run_extract(run_date)
 

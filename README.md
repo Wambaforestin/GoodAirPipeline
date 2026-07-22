@@ -309,6 +309,8 @@ Airflow 3 nécessite deux secrets partagés entre ses services Docker :
 > - **Timezone Open-Meteo** : Les timestamps retournés sont déjà en heure Paris mais Python les traitait comme UTC, créant un décalage de 2h. Résolu en conservant des `naive datetime` sans conversion.
 > - **Alertes email Airflow 3** : `SmtpNotifier` du provider Airflow forçait SSL (port 465) au lieu de STARTTLS (port 587). Résolu en utilisant `smtplib` natif Python avec `starttls()` explicite.
 > - **FK AlertesPredites sur IDTemps** : Les heures futures n'existent pas encore dans DimTemps. Résolu en supprimant la FK sur IDTemps et en utilisant `DateHeurePredite` directement en DATETIME2.
+> - **Variables SMTP non propagées aux conteneurs Airflow** : `SMTP_PASSWORD` et `ALERT_EMAILS` déclarées dans `.env` n'étaient pas injectées dans les conteneurs `scheduler` et `dag-processor` après une mise à jour Docker. Résolu en les déclarant explicitement dans la section `environment` de `x-airflow-common` dans `docker-compose.yml` avec `SMTP_PASSWORD: ${SMTP_PASSWORD}` et `ALERT_EMAILS: ${ALERT_EMAILS}`.
+> - **Runs parasites après réactivation d'un DAG pausé** : En cliquant sur "Effacer" avec l'option "Futur" sur une tâche échouée. Airflow a créé 1190 runs en file d'attente couvrant tout l'historique depuis le début du pipeline. Résolu en pausant immédiatement le DAG puis en supprimant les runs en file via PostgreSQL. Leçon : toujours décocher "Passé" et "Futur" et garder uniquement "Sélectionné" lors du rejeu d'une tâche.
 
 ---
 
