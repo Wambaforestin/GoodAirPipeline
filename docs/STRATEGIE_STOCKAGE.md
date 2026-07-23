@@ -98,6 +98,13 @@ bronze/
 │               └── hour=15/
 │                   ├── Paris.json
 │                   └── ...
+|__ open-meteo/
+    └── year=2026/
+        └── month=03/
+            └── day=30/
+                └── hour=15/
+                    ├── Paris.json
+                    └── ...
 
 silver/
 ├── mesures/
@@ -106,6 +113,13 @@ silver/
 │           └── day=30/
 │               └── hour=15/
 │                   └── mesures.parquet
+| 
+|__ features-ml/
+|    └── year=2026/
+|        └── month=03/
+|            └── day=30/
+|                └── hour=15/
+|                    └── features.parquet
 └── rejects/
 |    └── year=2026/
 |        └── month=03/
