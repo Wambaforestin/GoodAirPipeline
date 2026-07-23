@@ -80,9 +80,9 @@ La base de données est cloisonnée en 3 schémas fonctionnels plus un schéma t
 
 C'est le schéma principal. Il contient les tables en étoile prêtes pour l'analyse :
 
-- `Gold.FactMesures` — table de faits centrale (mesures horaires)
-- `Gold.DimLieux` — dimension géographique (villes et coordonnées)
-- `Gold.DimTemps` — dimension temporelle (calendrier horaire)
+- `Gold.FactMesures` - table de faits centrale (mesures horaires)
+- `Gold.DimLieux` - dimension géographique (villes et coordonnées)
+- `Gold.DimTemps` - dimension temporelle (calendrier horaire)
 
 **Qui y accède :** les chercheurs (SELECT), le directeur (SELECT), le pipeline (INSERT/UPDATE via MERGE).
 
@@ -90,9 +90,9 @@ C'est le schéma principal. Il contient les tables en étoile prêtes pour l'ana
 
 Contient les données de référence qui ne changent presque jamais :
 
-- `Ref.Pays` — codes ISO et noms des pays
-- `Ref.SeuilsOMS` — seuils de pollution de l'Organisation Mondiale de la Santé
-- `Ref.DataCatalog` — documentation de chaque colonne du DW
+- `Ref.Pays` - codes ISO et noms des pays
+- `Ref.SeuilsOMS` - seuils de pollution de l'Organisation Mondiale de la Santé
+- `Ref.DataCatalog` - documentation de chaque colonne du DW
 
 **Pourquoi un schéma séparé :** ces tables ont un cycle de vie différent des données analytiques. Elles sont mises à jour manuellement (ex: l'OMS révise ses seuils une fois par an), pas par le pipeline. Les séparer dans un schéma dédié permet d'appliquer des permissions différentes si nécessaire.
 
@@ -107,7 +107,7 @@ Contient les tables temporaires utilisées par le pipeline pour préparer les do
 **Caractéristiques des tables staging :**
 
 - Aucun index (pas besoin, les données sont lues une seule fois par le MERGE)
-- Aucune contrainte (PK, FK, CHECK) — les validations sont faites en Python avant l'insertion
+- Aucune contrainte (PK, FK, CHECK) les validations sont faites en Python avant l'insertion
 - Vidées par TRUNCATE à chaque run
 
 **Pourquoi passer par le staging au lieu d'insérer directement dans Gold :** le staging isole le processus de chargement. Si l'insertion en staging réussit mais le MERGE échoue, les données de Gold restent intactes. C'est une zone tampon qui protège l'intégrité du Data Warehouse.
@@ -259,9 +259,9 @@ WHEN MATCHED THEN UPDATE SET
 WHEN NOT MATCHED THEN INSERT (...) VALUES (...);
 ```
 
-**WHEN MATCHED (UPDATE)** — la ligne existe déjà pour cette ville à cette heure. On met à jour les métriques avec les valeurs les plus récentes. DateModification et IDBatch sont mis à jour pour tracer quel run a modifié la donnée en dernier.
+**WHEN MATCHED (UPDATE)** - la ligne existe déjà pour cette ville à cette heure. On met à jour les métriques avec les valeurs les plus récentes. DateModification et IDBatch sont mis à jour pour tracer quel run a modifié la donnée en dernier.
 
-**WHEN NOT MATCHED (INSERT)** — première fois qu'on voit cette ville à cette heure. On insère une nouvelle ligne avec DateInsertion = maintenant.
+**WHEN NOT MATCHED (INSERT)** - première fois qu'on voit cette ville à cette heure. On insère une nouvelle ligne avec DateInsertion = maintenant.
 
 **Pourquoi MERGE et pas DELETE/INSERT :** le MERGE est atomique (une seule transaction) et préserve DateInsertion sur les lignes existantes. Un DELETE/INSERT écraserait DateInsertion à chaque run, on perdrait l'information de quand la donnée a été vue pour la première fois.
 
@@ -339,7 +339,7 @@ L'ordre d'exécution du MERGE est critique. Les dimensions sont **toujours** ali
 3. MERGE FactMesures (les FK sont satisfaites)
 ```
 
-Si l'étape 1 échoue, les étapes 2 et 3 ne s'exécutent pas. Si l'étape 3 échoue, les dimensions sont déjà à jour mais aucun fait corrompu n'est inséré. Les 3 opérations sont dans un seul `conn.commit()` — si une échoue, tout est annulé (rollback transactionnel).
+Si l'étape 1 échoue, les étapes 2 et 3 ne s'exécutent pas. Si l'étape 3 échoue, les dimensions sont déjà à jour mais aucun fait corrompu n'est inséré. Les 3 opérations sont dans un seul `conn.commit()` - si une échoue, tout est annulé (rollback transactionnel).
 
 ```python
 # load_gold.py — une seule transaction pour les 3 opérations

@@ -58,7 +58,7 @@ Créée en phase ML. Cette zone contient les features prêtes à l'emploi pour l
 **Contenu :** Les 25 features transformées (encodages sin/cos. One-Hot. AQI_mean_6h) pour les 6 prochains créneaux horaires de chaque ville. soit 66 lignes maximum par run.
 **Durée de vie :** 48h. écrasé à chaque run via le partitionnement horaire.
 
-### Silver/rejet/ - Données incomplètes
+### Silver/rejet-ml/ - Données incomplètes
 
 Créée en phase ML. Cette zone capture les données qui n'ont pas pu être traitées par le feature engineering. pour analyse ultérieure et amélioration du modèle.
 
@@ -107,11 +107,18 @@ silver/
 │               └── hour=15/
 │                   └── mesures.parquet
 └── rejects/
+|    └── year=2026/
+|        └── month=03/
+|            └── day=30/
+|                └── hour=15/
+|                    └── rejects.parquet
+|__ rejet-ml/
     └── year=2026/
         └── month=03/
             └── day=30/
                 └── hour=15/
-                    └── rejects.parquet
+                    ├── Paris.json
+                    └── ...
 ```
 
 ### Pourquoi cette clé de partition
@@ -120,13 +127,13 @@ La clé de partition `year/month/day/hour` est choisie parce qu'elle correspond 
 
 **Avantages de cette clé :**
 
-1. **Accès ciblé** — pour relire les données du 15 mars à 14h, on accède directement à `year=2026/month=03/day=15/hour=14/` sans scanner les autres dossiers. Sur un Data Lake qui accumule des mois de données, ça fait une différence significative.
+1. **Accès ciblé** - pour relire les données du 15 mars à 14h, on accède directement à `year=2026/month=03/day=15/hour=14/` sans scanner les autres dossiers. Sur un Data Lake qui accumule des mois de données, ça fait une différence significative.
 
-2. **Idempotence naturelle** — le chemin est déterministe. Pour une date donnée, le chemin est toujours le même. Écraser le contenu du dossier de 14h ne crée jamais de doublons.
+2. **Idempotence naturelle** - le chemin est déterministe. Pour une date donnée, le chemin est toujours le même. Écraser le contenu du dossier de 14h ne crée jamais de doublons.
 
-3. **Purge sélective** — si on veut supprimer les données de janvier 2026, on supprime `year=2026/month=01/` sans toucher au reste. Pas besoin de scanner chaque fichier.
+3. **Purge sélective** - si on veut supprimer les données de janvier 2026, on supprime `year=2026/month=01/` sans toucher au reste. Pas besoin de scanner chaque fichier.
 
-4. **Compatibilité Hive** — la convention `key=value` (year=2026, month=03) est le standard de partitionnement Hive/Spark. Si on migre vers un moteur de requête (Trino, Spark, Athena), les partitions sont reconnues automatiquement.
+4. **Compatibilité Hive** - la convention `key=value` (year=2026, month=03) est le standard de partitionnement Hive/Spark. Si on migre vers un moteur de requête (Trino, Spark, Athena), les partitions sont reconnues automatiquement.
 
 ### Pourquoi pas d'autres clés de partition
 
