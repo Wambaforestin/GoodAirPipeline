@@ -107,9 +107,9 @@ GO
 
 -- DONNÉES INITIALES : Schémas GoodAir
 INSERT INTO Ref.CatalogSchema (NomSchema, Description) VALUES
-('Gold',    'Couche Gold : Data Warehouse final. Tables de faits et dimensions consommables par les équipes métier et les outils BI.'),
-('Silver',  'Couche Silver : Données nettoyées et structurées. Parquet partitionné dans MinIO. Intermédiaire entre Bronze et Gold.'),
-('Bronze',  'Couche Bronze : Données brutes JSON collectées depuis les APIs. Stockées dans MinIO. Partitionnées par source/année/mois/jour/heure.'),
+('Gold',    'Couche Gold : entrepôt de données final. Tables de faits et dimensions consommables par les équipes métier et les outils BI.'),
+('Silver',  'Couche Silver : Données nettoyées et structurées. Parquet partitionné dans MinIO. Intermédiaire entre la coucheBronze et Gold.'),
+('Bronze',  'Couche Bronze : Données brutes en JSON collectées depuis les APIs. Stockées dans MinIO. Partitionnées par source/année/mois/jour/heure. NB: Cette couche est notre source de vérité car elle contient les données originales, non modifiées.'),
 ('Ref',     'Schéma de référence : Tables de paramétrage, référentiels métier, Data Catalogue et seuils OMS.'),
 ('Staging', 'Schéma de staging : Tables temporaires utilisées lors du chargement MERGE vers Gold. Vidées à chaque run.');
 GO
