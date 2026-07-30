@@ -52,12 +52,15 @@ GO
 CREATE TABLE Ref.CatalogSource (
     IDSource        INT           NOT NULL IDENTITY(1,1),
     NomSource       NVARCHAR(200) NOT NULL,
-    TypeSource      NVARCHAR(100) NOT NULL,  -- API | Pipeline | Export | Fichier
+    TypeSource      NVARCHAR(100) NOT NULL,  -- API | Pipeline | Modèle
+    URLSource      NVARCHAR(500)      NULL,  -- URL de l API ou endpoint
     CheminDataLake  NVARCHAR(500)     NULL,
     Description     NVARCHAR(1000)    NULL,
     IsActive        BIT           NOT NULL DEFAULT 1,
     CONSTRAINT PK_CatalogSource PRIMARY KEY (IDSource),
-    CONSTRAINT UQ_CatalogSource_Nom UNIQUE (NomSource)
+    CONSTRAINT UQ_CatalogSource_Nom UNIQUE (NomSource),
+    CONSTRAINT CHK_CatalogSource_TypeSource
+    CHECK (TypeSource IN ('API', 'Pipeline', 'Modele'))
 );
 GO
 
@@ -65,6 +68,7 @@ GO
 CREATE TABLE Ref.CatalogColonneSource (
     IDColonne INT NOT NULL,
     IDSource  INT NOT NULL,
+    CheminSource NVARCHAR(500) NULL,  -- ex: main.humidity, data.iaqi.pm25.v
     CONSTRAINT PK_CatalogColonneSource PRIMARY KEY (IDColonne, IDSource),
     CONSTRAINT FK_ColonneSource_Colonne
         FOREIGN KEY (IDColonne) REFERENCES Ref.CatalogColonne(IDColonne),
@@ -114,23 +118,49 @@ INSERT INTO Ref.CatalogSchema (NomSchema, Description) VALUES
 ('Staging', 'Schéma de staging : Tables temporaires utilisées lors du chargement MERGE vers Gold. Vidées à chaque run.');
 GO
 
--- DONNÉES INITIALES : Sources de données
-INSERT INTO Ref.CatalogSource (NomSource, TypeSource, CheminDataLake, Description, IsActive) VALUES
-('OpenWeatherMap', 'API',      'bronze/openweathermap/year=/month=/day=/hour=/{ville}.json', 'API météo temps réel. Fournit température, humidité, pression et vitesse du vent pour chaque ville.', 1),
-('AQICN',          'API',      'bronze/aqicn/year=/month=/day=/hour=/{ville}.json',          'API qualité de l air. Fournit l indice AQI global et les polluants PM25, PM10, NO2, O3 par station.', 1),
-('Open-Meteo',     'API',      'bronze/open-meteo/year=/month=/day=/hour=/{ville}.json',     'API prévisions météo. Fournit direction du vent, couverture nuageuse et précipitations pour les 10 prochaines heures.', 1),
-('Pipeline',       'Pipeline', NULL,                                                          'Variables calculées par le pipeline ETL. IDTemps, MeteoStatus, AirStatus, DateInsertion.', 1),
-('Modèle ML',      'Pipeline', 'silver/features-ml/year=/month=/day=/hour=/features.parquet','Modèle Random Forest entraîné sur les données historiques. Génère les prédictions AQI à 6 heures.', 1);
+-- Données initiales : Sources de données
+INSERT INTO Ref.CatalogSource (NomSource, TypeSource, URLSource, CheminDataLake, Description, IsActive) VALUES
+('OpenWeatherMap',
+ 'API',
+ 'https://api.openweathermap.org/data/2.5/weather',
+ 'bronze/openweathermap/year=/month=/day=/hour=/{ville}.json',
+ 'API météo temps réel. Fournit température, humidité, pression et vitesse du vent pour chaque ville.',
+ 1),
+('AQICN',
+ 'API',
+ 'https://api.waqi.info/feed/{ville}/',
+ 'bronze/aqicn/year=/month=/day=/hour=/{ville}.json',
+ 'API qualité de l air. Fournit l indice AQI global et les polluants PM25, PM10, NO2, O3 par station.',
+ 1),
+('Open-Meteo',
+ 'API',
+ 'https://api.open-meteo.com/v1/forecast',
+ 'bronze/open-meteo/year=/month=/day=/hour=/{ville}.json',
+ 'API prévisions météo. Fournit direction du vent, couverture nuageuse et précipitations pour les 10 prochaines heures.',
+ 1),
+('Pipeline',
+ 'Pipeline',
+ NULL,
+ NULL,
+ 'Variables calculées par le pipeline ETL. IDTemps, MeteoStatus, AirStatus, DateInsertion.',
+ 1),
+('Modèle ML',
+ 'Modele',
+ NULL,
+ 'silver/features-ml/year=/month=/day=/hour=/features.parquet',
+ 'Modèle Random Forest entraîné sur les données historiques. Génère les prédictions AQI à 6 heures.',
+ 1);
 GO
+ 
 
--- UTILISATEURS INITIAUX
+-- Données initiales : Utilisateurs
 INSERT INTO Ref.CatalogUtilisateur (Nom, Email, Role) VALUES
 ('Admin GoodAir',    'admin@goodair.fr',        'DataEngineer'),
 ('Chercheur GoodAir','chercheur@goodair.fr',     'Chercheur'),
 ('Expert Métier',    'expert@goodair.fr',        'ExpertMetier');
 GO
 
--- VÉRIFICATION SI L'ON A BIEN TOUT CRÉÉ
+-- Vérification du nombre de lignes dans chaque table du catalogue
 SELECT 'CatalogSchema'       AS NomTable, COUNT(*) AS NbLignes FROM Ref.CatalogSchema
 UNION ALL
 SELECT 'CatalogTable',        COUNT(*) FROM Ref.CatalogTable
