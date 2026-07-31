@@ -32,3 +32,7 @@ data/raw/
 data/processed/
 src/ml/models/*.pkl
 src/ml/models/*.json
+
+
+## === les metadata de GoodAir ===
+src/sql/insert_metadata.sql
