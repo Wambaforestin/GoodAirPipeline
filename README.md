@@ -75,7 +75,7 @@ Un pipeline ETL horaire qui tourne en local via Docker, avec 5 étapes :
 
 ## Visualisation des données dans Metabase
 
-![Metabase Dashboard](images/resultats_projet/dashboard_onglet1_multi_villes.png)
+![Metabase Dashboard](images/resultats_projet/dashboard_onglet1_multi_villesV2.png)
 
 ## Feature importance du modèle Random Forest
 
