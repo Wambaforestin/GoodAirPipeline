@@ -352,7 +352,6 @@ docker compose logs -f nom_service
 - [Audit de la nouvelle source Open-Meteo](docs/AUDIT_NOUVELLE_SOURCE.md) - découverte, analyse du payload et mapping des variables
 - [Stratégie de stockage dans MinIO](docs/STRATEGIE_STOCKAGE.md) - organisation, partitionnement, et sécurité des données dans MinIO.
 - [Stratégie Data Warehouse](docs/STRATEGIE_DATAWAREHOUSE.md) - modélisation, schémas, MERGE et sécurité SQL Server.
-- [Data Catalog](docs/DATA_CATALOG.md) - documentation des tables et colonnes.
 - [Principes de développement](docs/PRINCIPE_DE_DEVELOPPEMENT_PIPELINE.md) - principes d'ingénierie, patterns et pratiques appliqués
 - [Gestion du fuseau horaire](docs/CHANGEMENT_FUSEAU_HORAIRE.md) - explication détaillée du choix et de l'implémentation du fuseau horaire.
 - [Visualisation des données dans Metabase](docs/VISUALISATION_METABASE.md) - présentation des dashboards et KPIs pour les chercheurs
